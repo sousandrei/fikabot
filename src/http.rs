@@ -1,90 +1,82 @@
-use hyper::{
-    service::{make_service_fn, service_fn},
-    Request, Server,
-};
-use hyper::{Body, Response};
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
-use tokio::{
-    signal::unix::{signal, SignalKind},
-    task::JoinHandle,
-};
+use std::convert::Infallible;
+use warp::{hyper::StatusCode, Filter, Rejection, Reply};
 
-use crate::Error;
+use crate::{db, User};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-struct SlackBody {
-    token: String,
-    team_id: String,
-    team_domain: String,
-    channel_id: String,
-    channel_name: String,
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
+struct SlackCommandBody {
     user_id: String,
     user_name: String,
     command: String,
-    text: String,
-    api_app_id: String,
-    is_enterprise_install: String,
-    response_url: String,
-    trigger_id: String,
 }
 
-pub fn start() -> JoinHandle<Result<(), Error>> {
-    tokio::spawn(async move {
-        let service =
-            make_service_fn(|_connection| async { Ok::<_, Error>(service_fn(handle_request)) });
+pub async fn start() {
+    // POST /commands
+    let commands = warp::path!("commands")
+        .and(warp::post())
+        .and(warp::body::form())
+        .and_then(handle_commands);
 
-        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 8080));
-        let server = Server::bind(&addr).serve(service);
+    let routes = commands.recover(handle_rejection);
 
-        let (tx, mut rx) = mpsc::channel(1);
-
-        let graceful = server.with_graceful_shutdown(async {
-            rx.recv().await;
-            println!("Shutting down hyper server");
-        });
-
-        listen_for_signal(tx.clone(), SignalKind::interrupt());
-        listen_for_signal(tx.clone(), SignalKind::terminate());
-
-        println!("HTTP Online: {}", addr);
-
-        graceful.await?;
-
-        Ok(())
-    })
+    println!("HTTP serving on port 8080");
+    warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
 }
 
-fn listen_for_signal(tx: tokio::sync::mpsc::Sender<SignalKind>, kind: SignalKind) {
-    tokio::task::spawn(async move {
-        let mut stream =
-            signal(kind).unwrap_or_else(|_| panic!("Error opening signal stream [{:?}]", kind));
+async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
+    println!("err {:#?}", err);
 
-        stream.recv().await;
-        println!("Termination signal received");
-
-        tx.send(kind).await.unwrap();
-    });
+    let res = warp::reply::with_status(warp::reply::html("Error"), StatusCode::OK);
+    Ok(res)
 }
 
-async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Error> {
-    // Validate request
-    // If its right and all
+async fn handle_commands(body: SlackCommandBody) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
+    match body.command.as_str() {
+        "/lunch_join" => join_command(body).await,
+        "/lunch_leave" => leave_command(body).await,
+        _ => {
+            let res = warp::reply::with_status(
+                warp::reply::html("Command not found"),
+                StatusCode::NOT_FOUND,
+            );
 
-    let body_bytes = hyper::body::to_bytes(req.into_body()).await?;
-
-    let response = match serde_qs::from_bytes::<SlackBody>(&body_bytes) {
-        Ok(body) => {
-            println!("{:#?}", body);
-
-            Response::builder().body(Body::from("all good"))?
+            Ok(Box::new(res))
         }
-        Err(e) => {
-            println!("{:?}", e);
+    }
+}
 
-            Response::builder().body(Body::from("not good"))?
-        }
-    };
+async fn join_command(body: SlackCommandBody) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
+    // delete anyone with same id/workspace
+    // create a user
 
-    Ok(response)
+    let SlackCommandBody {
+        user_id, user_name, ..
+    } = body;
+
+    let user = User { user_id, user_name };
+
+    db::add_user(user).await;
+
+    let res = warp::reply::with_status(
+        warp::reply::html("You just joined the lunch roullette! See you next monday!"),
+        StatusCode::OK,
+    );
+
+    Ok(Box::new(res))
+}
+
+async fn leave_command(body: SlackCommandBody) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
+    let SlackCommandBody {
+        user_id, user_name, ..
+    } = body;
+
+    let user = User { user_id, user_name };
+
+    db::del_user(user).await;
+
+    let res =
+        warp::reply::with_status(warp::reply::html("Sad to see you leave :c"), StatusCode::OK);
+
+    Ok(Box::new(res))
 }
