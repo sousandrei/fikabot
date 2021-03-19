@@ -11,8 +11,7 @@ pub fn start() -> JoinHandle<Result<(), Error>> {
         // let expression = "*/10 * * * * *";
 
         // Every Monday 10h30
-        // let expression = "* 30 10 * * 2 *";
-        let expression = "*/10 * * * * *";
+        let expression = "* 30 10 * * 2 *";
 
         let schedule = Schedule::from_str(expression)?;
 

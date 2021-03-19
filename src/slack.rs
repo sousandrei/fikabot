@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::env;
 
 use crate::User;
 
@@ -8,28 +9,23 @@ struct SlackMessage {
     text: String,
 }
 
-pub async fn send_message(user: &User, msg: &str) {
-    println!("person {:#?} msg {:#?}", user.user_name, msg);
+pub async fn send_message(user: &User, text: String) {
+    let token = env::var("SLACK_TOKEN").unwrap();
 
-    // let User { user_id, .. } = user;
+    println!("person {:#?} msg {:#?}", user.user_name, text);
 
-    // let msg = SlackMessage {
-    //     channel: format!("@{}", user_id),
-    //     text: "<@userID> eita".to_string(),
-    // };
+    let User { user_id, .. } = user;
 
-    // let token = "?";
+    let msg = SlackMessage {
+        channel: format!("@{}", user_id),
+        text,
+    };
 
-    // let res: serde_json::Value = reqwest::Client::new()
-    //     .post("https://slack.com/api/chat.postMessage")
-    //     .bearer_auth(token)
-    //     .json(&msg)
-    //     .send()
-    //     .await
-    //     .unwrap()
-    //     .json()
-    //     .await
-    //     .unwrap();
-
-    // println!("{:#?}", res);
+    reqwest::Client::new()
+        .post("https://slack.com/api/chat.postMessage")
+        .bearer_auth(token)
+        .json(&msg)
+        .send()
+        .await
+        .unwrap();
 }
