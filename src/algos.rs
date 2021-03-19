@@ -24,37 +24,82 @@ pub async fn matchmake() {
 
     // Just one pair, handle naively
     if pairs.len() < 2 {
-        slack::send_message(&pairs[0][0], "a").await;
-        slack::send_message(&pairs[0][1], "a").await;
-
+        message_pair(&pairs[0]).await;
         return;
     }
 
     // Send message to pairs
     for i in 0..pairs.len() - 2 {
-        let msg = "Here is your pair for the week normal";
-
-        slack::send_message(&pairs[i][0], msg).await;
-        slack::send_message(&pairs[i][1], msg).await;
+        message_pair(&pairs[i]).await;
     }
 
     if pairs[pairs.len() - 1].len() < 2 {
-        let msg = "Here is your pair for this week. I had to include a second person since they were left of without a pair :c";
-        // Last pair
-        slack::send_message(&pairs[pairs.len() - 2][0], msg).await;
-        slack::send_message(&pairs[pairs.len() - 2][1], msg).await;
-
-        // Last person
-        slack::send_message(&pairs[pairs.len() - 1][0], msg).await;
+        message_trio(
+            &pairs[pairs.len() - 1][0],
+            &pairs[pairs.len() - 2][0],
+            &pairs[pairs.len() - 2][1],
+        )
+        .await;
     } else {
-        let msg = "Here is your pair for the week";
-
         // second to last pair
-        slack::send_message(&pairs[pairs.len() - 2][0], msg).await;
-        slack::send_message(&pairs[pairs.len() - 2][1], msg).await;
+        message_pair(&pairs[pairs.len() - 2]).await;
 
         // Last pair
-        slack::send_message(&pairs[pairs.len() - 1][0], msg).await;
-        slack::send_message(&pairs[pairs.len() - 1][1], msg).await;
+        message_pair(&pairs[pairs.len() - 1]).await;
     }
+}
+
+// TODO: come up with a couple different message
+async fn message_pair(pair: &[User]) {
+    if let [user1, user2] = pair {
+        slack::send_message(
+            user1,
+            format!(
+                "This week your lunch pair this week is <@{}>!",
+                user1.user_id
+            ),
+        )
+        .await;
+
+        slack::send_message(
+            user2,
+            format!(
+                "This week your lunch pair this week is <@{}>!",
+                user2.user_id
+            ),
+        )
+        .await;
+    }
+}
+
+async fn message_trio(user1: &User, user2: &User, user3: &User) {
+    slack::send_message(
+        user1,
+        format!(
+            "Here is your pair for this week. <@{}> and <@{}>!\nThis time you got an extra buddy! ;)",
+            user2.user_id,
+            user3.user_id
+        ),
+    )
+    .await;
+
+    slack::send_message(
+        user2,
+        format!(
+            "Here is your pair for this week. <@{}> and <@{}>!\nThis time you got an extra buddy! ;)",
+            user1.user_id,
+            user3.user_id
+        ),
+    )
+    .await;
+
+    slack::send_message(
+        user3,
+        format!(
+            "Here is your pair for this week. <@{}> and <@{}>!\nThis time you got an extra buddy! ;)",
+            user1.user_id,
+            user2.user_id
+        ),
+    )
+    .await;
 }
