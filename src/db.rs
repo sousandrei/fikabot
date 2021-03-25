@@ -41,7 +41,7 @@ pub async fn list_users(db: Database) -> Result<Vec<User>, Error> {
             }
 
             let document = document.unwrap();
-            return Some(document.into());
+            Some(document.into())
         })
         .collect();
 
