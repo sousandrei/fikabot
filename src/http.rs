@@ -14,13 +14,21 @@ pub async fn start() {
     // 404
     let not_found = warp::path::end().map(|| "Hello, World at root!");
 
+    // K8s health
+    let metrics = warp::path!("metrics").map(|| StatusCode::OK);
+    let healthcheck = warp::path!("healthchecks").map(|| StatusCode::OK);
+
     // POST /commands
     let commands = warp::path!("commands")
         .and(warp::post())
         .and(warp::body::form())
         .and_then(handle_commands);
 
-    let routes = commands.or(not_found).with(warp::log("lunch::api"));
+    let routes = commands
+        .or(metrics)
+        .or(healthcheck)
+        .or(not_found)
+        .with(warp::log("lunch::api"));
 
     warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
 }
