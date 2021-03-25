@@ -11,7 +11,7 @@ struct SlackMessage {
 }
 
 pub async fn send_message(user: &User, text: String) {
-    let token = env::var("SLACK_TOKEN").unwrap();
+    let token = env::var("SLACK_TOKEN").expect("SLACK_TOKEN not set");
 
     debug!("person {:#?} msg {:#?}", user.user_name, text);
 

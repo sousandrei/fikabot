@@ -1,29 +1,34 @@
+use mongodb::sync::Client;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
-use crate::{db, slack, User};
+use crate::{db, slack, Error, User};
 
-pub async fn matchmake() {
-    let mut users = db::list_users().await;
+pub async fn matchmake() -> Result<(), Error> {
+    // TODO: parametrize
+    let client = Client::with_uri_str("mongodb://localhost:27017")?;
+    let db = client.database("fika");
+
+    let mut users = db::list_users(db).await?;
 
     // Shuffle people
     users.shuffle(&mut thread_rng());
 
     // Not enough people to pair
     if users.len() < 2 {
-        return;
+        return Ok(());
     }
 
     let pairs: Vec<&[User]> = users.chunks(2).collect();
 
     if pairs.is_empty() {
-        return;
+        return Ok(());
     }
 
     // Just one pair, handle naively
     if pairs.len() < 2 {
         message_pair(&pairs[0]).await;
-        return;
+        return Ok(());
     }
 
     // Send message to pairs
@@ -45,6 +50,8 @@ pub async fn matchmake() {
         // Last pair
         message_pair(&pairs[pairs.len() - 1]).await;
     }
+
+    Ok(())
 }
 
 // TODO: come up with a couple different message
@@ -52,19 +59,13 @@ async fn message_pair(pair: &[User]) {
     if let [user1, user2] = pair {
         slack::send_message(
             user1,
-            format!(
-                "This week your lunch pair this week is <@{}>!",
-                user1.user_id
-            ),
+            format!("This week your fika pair is<@{}>!", user1.user_id),
         )
         .await;
 
         slack::send_message(
             user2,
-            format!(
-                "This week your lunch pair this week is <@{}>!",
-                user2.user_id
-            ),
+            format!("This week your fika pair is<@{}>!", user2.user_id),
         )
         .await;
     }

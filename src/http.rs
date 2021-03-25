@@ -1,7 +1,11 @@
+use std::env;
+
+use mongodb::sync::{Client, Database};
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use warp::{hyper::StatusCode, Filter};
 
-use crate::{db, User};
+use crate::{db, Error, User};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 struct SlackCommandBody {
@@ -10,7 +14,12 @@ struct SlackCommandBody {
     command: String,
 }
 
-pub async fn start() {
+pub async fn start() -> Result<(), Error> {
+    let mongo_url = env::var("MONGO_URL").expect("MONGO_URL not present on environment");
+
+    let client = Client::with_uri_str(&mongo_url)?;
+    let db = client.database("fika");
+
     // 404
     let not_found = warp::path::end().map(|| "Hello, World at root!");
 
@@ -21,6 +30,7 @@ pub async fn start() {
     // POST /commands
     let commands = warp::path!("commands")
         .and(warp::post())
+        .and(with_db(db))
         .and(warp::body::form())
         .and_then(handle_commands);
 
@@ -28,15 +38,26 @@ pub async fn start() {
         .or(metrics)
         .or(healthcheck)
         .or(not_found)
-        .with(warp::log("lunch::api"));
+        .with(warp::log("fika::api"));
 
     warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
+
+    Ok(())
 }
 
-async fn handle_commands(body: SlackCommandBody) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
+fn with_db(
+    db: Database,
+) -> impl Filter<Extract = (Database,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || db.clone())
+}
+
+async fn handle_commands(
+    db: Database,
+    body: SlackCommandBody,
+) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
     match body.command.as_str() {
-        "/lunch_join" => join_command(body).await,
-        "/lunch_leave" => leave_command(body).await,
+        "/fika_join" => join_command(db, body).await,
+        "/fika_leave" => leave_command(db, body).await,
         _ => {
             let res = warp::reply::with_status(
                 warp::reply::html("Command not found"),
@@ -48,37 +69,46 @@ async fn handle_commands(body: SlackCommandBody) -> Result<Box<dyn warp::Reply>,
     }
 }
 
-async fn join_command(body: SlackCommandBody) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
-    // delete anyone with same id/workspace
-    // create a user
-
+async fn join_command(
+    db: Database,
+    body: SlackCommandBody,
+) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
     let SlackCommandBody {
         user_id, user_name, ..
     } = body;
 
     let user = User { user_id, user_name };
 
-    db::add_user(user).await;
+    let message = match db::add_user(db, user).await {
+        Ok(_) => "You just joined the fika roullette! See you next monday! :doughnut:",
+        Err(e) => {
+            error!("Error adding user: {}", e);
+            "There was an error trying to add you. Try again soon :thinking_face:"
+        }
+    };
 
-    let res = warp::reply::with_status(
-        warp::reply::html("You just joined the lunch roullette! See you next monday!"),
-        StatusCode::OK,
-    );
-
+    let res = warp::reply::with_status(warp::reply::html(message), StatusCode::OK);
     Ok(Box::new(res))
 }
 
-async fn leave_command(body: SlackCommandBody) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
+async fn leave_command(
+    db: Database,
+    body: SlackCommandBody,
+) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
     let SlackCommandBody {
         user_id, user_name, ..
     } = body;
 
     let user = User { user_id, user_name };
 
-    db::del_user(user).await;
+    let message = match db::del_user(db, user).await {
+        Ok(_) => "Sad to see you leave :cry:",
+        Err(e) => {
+            error!("Error deleting user: {}", e);
+            "There was an error trying to delete you. Try again soon :thinking_face:"
+        }
+    };
 
-    let res =
-        warp::reply::with_status(warp::reply::html("Sad to see you leave :c"), StatusCode::OK);
-
+    let res = warp::reply::with_status(warp::reply::html(message), StatusCode::OK);
     Ok(Box::new(res))
 }
