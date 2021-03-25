@@ -16,9 +16,7 @@ pub async fn matchmake() {
 
     let pairs: Vec<&[User]> = users.chunks(2).collect();
 
-    println!("len {}", pairs.len());
-
-    if pairs.len() < 1 {
+    if pairs.is_empty() {
         return;
     }
 
@@ -29,8 +27,8 @@ pub async fn matchmake() {
     }
 
     // Send message to pairs
-    for i in 0..pairs.len() - 2 {
-        message_pair(&pairs[i]).await;
+    for pair in pairs.iter().take(pairs.len() - 2) {
+        message_pair(pair).await;
     }
 
     if pairs[pairs.len() - 1].len() < 2 {

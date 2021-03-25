@@ -1,3 +1,5 @@
+use std::env;
+
 use serde::{Deserialize, Serialize};
 
 mod algos;
@@ -16,6 +18,12 @@ pub struct User {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    if env::var_os("RUST_LOG").is_none() {
+        env::set_var("RUST_LOG", "info");
+    }
+
+    tracing_subscriber::fmt::init();
+
     cron::start();
     http::start().await;
 
