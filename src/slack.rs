@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::env;
+use tracing::debug;
 
 use crate::User;
 
@@ -12,7 +13,7 @@ struct SlackMessage {
 pub async fn send_message(user: &User, text: String) {
     let token = env::var("SLACK_TOKEN").unwrap();
 
-    println!("person {:#?} msg {:#?}", user.user_name, text);
+    debug!("person {:#?} msg {:#?}", user.user_name, text);
 
     let User { user_id, .. } = user;
 
