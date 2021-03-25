@@ -16,7 +16,6 @@ pub fn start() -> JoinHandle<Result<(), Error>> {
 
         let schedule = Schedule::from_str(expression)?;
 
-        // TODO: properly treat this error
         let mut next = schedule.upcoming(Utc).take(1).next().unwrap();
 
         info!("Starting cron schedule");
@@ -30,9 +29,8 @@ pub fn start() -> JoinHandle<Result<(), Error>> {
 
             sleep(diff.to_std()?).await;
 
-            algos::matchmake().await;
+            algos::matchmake().await?;
 
-            // TODO: properly treat this error
             next = schedule.upcoming(Utc).take(1).next().unwrap();
             info!("next {:?}", next);
         }
