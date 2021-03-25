@@ -1,0 +1,49 @@
+name: Branches
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        name: Installing toolchain
+        with:
+          profile: default
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: rustfmt, clippy
+
+      - uses: actions-rs/cargo@v1
+        name: Build
+        with:
+          command: build
+          args: --release
+
+      - uses: actions-rs/cargo@v1
+        name: Fmt
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - uses: actions-rs/cargo@v1
+        name: Clippy
+        with:
+          command: clippy
+          args: -- -D warnings
