@@ -1,8 +1,8 @@
 use mongodb::{bson::doc, options::UpdateOptions, sync::Database};
 
-use crate::{Error, User};
+use crate::User;
 
-pub async fn add_user(db: Database, user: User) -> Result<(), Error> {
+pub async fn add_user(db: Database, user: User) -> anyhow::Result<()> {
     let users = db.collection("users");
 
     let options = UpdateOptions::builder().upsert(true).build();
@@ -21,7 +21,7 @@ pub async fn add_user(db: Database, user: User) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn del_user(db: Database, user: User) -> Result<(), Error> {
+pub async fn del_user(db: Database, user: User) -> anyhow::Result<()> {
     let users = db.collection("users");
 
     // TODO: return error if user is not here (different message)
@@ -30,7 +30,7 @@ pub async fn del_user(db: Database, user: User) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn list_users(db: Database) -> Result<Vec<User>, Error> {
+pub async fn list_users(db: Database) -> anyhow::Result<Vec<User>> {
     let users = db.collection("users");
 
     let users: Vec<User> = users
