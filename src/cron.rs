@@ -4,9 +4,9 @@ use std::str::FromStr;
 use tokio::{task::JoinHandle, time::sleep};
 use tracing::info;
 
-use crate::{algos, Error};
+use crate::algos;
 
-pub fn start() -> JoinHandle<Result<(), Error>> {
+pub fn start() -> JoinHandle<anyhow::Result<()>> {
     tokio::spawn(async move {
         // Every 10 seconds
         // let expression = "*/10 * * * * *";

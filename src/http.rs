@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use warp::{hyper::StatusCode, Filter};
 
-use crate::{db, Error, User};
+use crate::{db, User};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 struct SlackCommandBody {
@@ -14,7 +14,7 @@ struct SlackCommandBody {
     command: String,
 }
 
-pub async fn start() -> Result<(), Error> {
+pub async fn start() -> anyhow::Result<()> {
     let mongo_url = env::var("MONGO_URL").expect("MONGO_URL not present on environment");
 
     let client = Client::with_uri_str(&mongo_url)?;

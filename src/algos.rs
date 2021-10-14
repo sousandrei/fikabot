@@ -1,10 +1,9 @@
 use mongodb::sync::Client;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::{prelude::SliceRandom, thread_rng};
 
-use crate::{db, slack, Error, User};
+use crate::{db, slack, User};
 
-pub async fn matchmake() -> Result<(), Error> {
+pub async fn matchmake() -> anyhow::Result<()> {
     // TODO: parametrize
     let client = Client::with_uri_str("mongodb://localhost:27017")?;
     let db = client.database("fika");
