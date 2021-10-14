@@ -1,10 +1,9 @@
 use mongodb::sync::Client;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::{prelude::SliceRandom, thread_rng};
 
-use crate::{db, slack, Error, User};
+use crate::{db, slack, User};
 
-pub async fn matchmake() -> Result<(), Error> {
+pub async fn matchmake() -> anyhow::Result<()> {
     // TODO: parametrize
     let client = Client::with_uri_str("mongodb://localhost:27017")?;
     let db = client.database("fika");
@@ -27,7 +26,7 @@ pub async fn matchmake() -> Result<(), Error> {
 
     // Just one pair, handle naively
     if pairs.len() < 2 {
-        message_pair(&pairs[0]).await;
+        message_pair(pairs[0]).await;
         return Ok(());
     }
 
@@ -45,10 +44,10 @@ pub async fn matchmake() -> Result<(), Error> {
         .await;
     } else {
         // second to last pair
-        message_pair(&pairs[pairs.len() - 2]).await;
+        message_pair(pairs[pairs.len() - 2]).await;
 
         // Last pair
-        message_pair(&pairs[pairs.len() - 1]).await;
+        message_pair(pairs[pairs.len() - 1]).await;
     }
 
     Ok(())
