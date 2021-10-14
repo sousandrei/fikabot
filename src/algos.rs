@@ -26,7 +26,7 @@ pub async fn matchmake() -> anyhow::Result<()> {
 
     // Just one pair, handle naively
     if pairs.len() < 2 {
-        message_pair(&pairs[0]).await;
+        message_pair(pairs[0]).await;
         return Ok(());
     }
 
@@ -44,10 +44,10 @@ pub async fn matchmake() -> anyhow::Result<()> {
         .await;
     } else {
         // second to last pair
-        message_pair(&pairs[pairs.len() - 2]).await;
+        message_pair(pairs[pairs.len() - 2]).await;
 
         // Last pair
-        message_pair(&pairs[pairs.len() - 1]).await;
+        message_pair(pairs[pairs.len() - 1]).await;
     }
 
     Ok(())
