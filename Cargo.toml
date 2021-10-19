@@ -9,7 +9,8 @@ version = "0.1.0"
 anyhow = "1.0.44"
 chrono = "0.4.19"
 cron = "0.8.0"
-mongodb = { version = "1.2.0", features = ["sync"], default-features = false }
+futures-util = "0.3.17"
+mongodb = "2"
 rand = "0.8.3"
 reqwest = { version = "0.11.2", features = ["json"] }
 serde = { version = "1.0.124", features = ["derive"] }
