@@ -1,23 +1,25 @@
 use std::env;
 
-use mongodb::sync::{Client, Database};
+use mongodb::{Client, Database};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use warp::{hyper::StatusCode, Filter};
 
-use crate::{db, User};
+use crate::{db, db::Channel};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 struct SlackCommandBody {
     user_id: String,
     user_name: String,
     command: String,
+    channel_id: String,
+    channel_name: String,
 }
 
 pub async fn start() -> anyhow::Result<()> {
     let mongo_url = env::var("MONGO_URL").expect("MONGO_URL not present on environment");
 
-    let client = Client::with_uri_str(&mongo_url)?;
+    let client = Client::with_uri_str(&mongo_url).await?;
     let db = client.database("fika");
 
     // 404
@@ -74,16 +76,21 @@ async fn join_command(
     body: SlackCommandBody,
 ) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
     let SlackCommandBody {
-        user_id, user_name, ..
+        channel_id,
+        channel_name,
+        ..
     } = body;
 
-    let user = User { user_id, user_name };
+    let channel = Channel {
+        channel_id,
+        channel_name,
+    };
 
-    let message = match db::add_user(db, user).await {
-        Ok(_) => "You just joined the fika roullette! See you next monday! :doughnut:",
+    let message = match db::add_channel(db, channel).await {
+        Ok(_) => "You just started the Fika roullete on this channel! :doughnut:",
         Err(e) => {
-            error!("Error adding user: {}", e);
-            "There was an error trying to add you. Try again soon :thinking_face:"
+            error!("Error channel user: {}", e);
+            "There was an error trying to start the fika roullete here. Try again soon :thinking_face:"
         }
     };
 
@@ -96,12 +103,17 @@ async fn leave_command(
     body: SlackCommandBody,
 ) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
     let SlackCommandBody {
-        user_id, user_name, ..
+        channel_id,
+        channel_name,
+        ..
     } = body;
 
-    let user = User { user_id, user_name };
+    let channel = Channel {
+        channel_id,
+        channel_name,
+    };
 
-    let message = match db::del_user(db, user).await {
+    let message = match db::del_channel(db, channel).await {
         Ok(_) => "Sad to see you leave :cry:",
         Err(e) => {
             error!("Error deleting user: {}", e);

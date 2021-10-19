@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::debug;
 
-use crate::User;
+use crate::db::User;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 struct SlackMessage {
