@@ -1,49 +1,65 @@
-use mongodb::{bson::doc, options::UpdateOptions, sync::Database};
+use futures_util::stream::StreamExt;
+use mongodb::{bson::doc, options::UpdateOptions, Database};
+use serde::{Deserialize, Serialize};
 
-use crate::User;
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
+pub struct User {
+    pub user_id: String,
+    pub user_name: String,
+}
 
-pub async fn add_user(db: Database, user: User) -> anyhow::Result<()> {
-    let users = db.collection("users");
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
+pub struct Channel {
+    pub channel_id: String,
+    pub channel_name: String,
+}
+
+pub async fn add_channel(db: Database, channel: Channel) -> anyhow::Result<()> {
+    let channels = db.collection::<Channel>("channels");
 
     let options = UpdateOptions::builder().upsert(true).build();
 
-    // TODO: different message for user that is being updated!
-    users.update_one(
-        doc! { "user_id": user.user_id.clone() },
-        // TODO: impl user to doc
-        doc! {
-            "user_id": user.user_id,
-            "user_name": user.user_name
-        },
-        options,
-    )?;
+    channels
+        .update_one(
+            doc! { "channel_id": channel.channel_id.clone() },
+            // TODO: impl this? gotta be a better way
+            doc! {
+                "channel_id": channel.channel_id.clone(),
+                "channel_name": channel.channel_name.clone()
+            },
+            options,
+        )
+        .await?;
 
     Ok(())
 }
 
-pub async fn del_user(db: Database, user: User) -> anyhow::Result<()> {
-    let users = db.collection("users");
+pub async fn del_channel(db: Database, channel: Channel) -> anyhow::Result<()> {
+    let channels = db.collection::<Channel>("channels");
 
-    // TODO: return error if user is not here (different message)
-    users.delete_one(doc! { "user_id": user.user_id }, None)?;
+    // TODO: filter error for channel not there
+    channels
+        .delete_one(doc! { "channel_id": channel.channel_id }, None)
+        .await?;
 
     Ok(())
 }
 
-pub async fn list_users(db: Database) -> anyhow::Result<Vec<User>> {
-    let users = db.collection("users");
+pub async fn list_channels(db: Database) -> anyhow::Result<Vec<Channel>> {
+    let channels = db.collection::<Channel>("channels");
 
-    let users: Vec<User> = users
-        .find(None, None)?
-        .filter_map(|document| {
-            if document.is_err() {
-                return None;
+    let channels = channels
+        .find(None, None)
+        .await?
+        .filter_map(|channel| async move {
+            match channel {
+                Ok(c) => Some(c),
+                // TODO: proper log errors
+                Err(_) => None,
             }
-
-            let document = document.unwrap();
-            Some(document.into())
         })
-        .collect();
+        .collect::<Vec<Channel>>()
+        .await;
 
-    Ok(users)
+    Ok(channels)
 }

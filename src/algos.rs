@@ -1,56 +1,71 @@
-use mongodb::sync::Client;
+use mongodb::Client;
 use rand::{prelude::SliceRandom, thread_rng};
 
-use crate::{db, slack, User};
+use crate::{
+    db,
+    db::{Channel, User},
+    slack,
+};
 
 pub async fn matchmake() -> anyhow::Result<()> {
-    // TODO: parametrize
-    let client = Client::with_uri_str("mongodb://localhost:27017")?;
+    // TODO: abstract DB / move from mongo?
+    let client = Client::with_uri_str("mongodb://localhost:27017").await?;
     let db = client.database("fika");
 
-    let mut users = db::list_users(db).await?;
+    let channels = db::list_channels(db).await?;
 
-    // Shuffle people
-    users.shuffle(&mut thread_rng());
+    for channel in channels {
+        let mut users = get_channels_users(channel).await?;
 
-    // Not enough people to pair
-    if users.len() < 2 {
-        return Ok(());
-    }
+        // Shuffle people
+        users.shuffle(&mut thread_rng());
 
-    let pairs: Vec<&[User]> = users.chunks(2).collect();
+        // Not enough people to pair
+        if users.len() < 2 {
+            return Ok(());
+        }
 
-    if pairs.is_empty() {
-        return Ok(());
-    }
+        let pairs: Vec<&[User]> = users.chunks(2).collect();
 
-    // Just one pair, handle naively
-    if pairs.len() < 2 {
-        message_pair(pairs[0]).await;
-        return Ok(());
-    }
+        if pairs.is_empty() {
+            return Ok(());
+        }
 
-    // Send message to pairs
-    for pair in pairs.iter().take(pairs.len() - 2) {
-        message_pair(pair).await;
-    }
+        // Just one pair, handle naively
+        if pairs.len() < 2 {
+            message_pair(pairs[0]).await;
+            return Ok(());
+        }
 
-    if pairs[pairs.len() - 1].len() < 2 {
-        message_trio(
-            &pairs[pairs.len() - 1][0],
-            &pairs[pairs.len() - 2][0],
-            &pairs[pairs.len() - 2][1],
-        )
-        .await;
-    } else {
-        // second to last pair
-        message_pair(pairs[pairs.len() - 2]).await;
+        // Send message to pairs
+        for pair in pairs.iter().take(pairs.len() - 2) {
+            message_pair(pair).await;
+        }
 
-        // Last pair
-        message_pair(pairs[pairs.len() - 1]).await;
+        if pairs[pairs.len() - 1].len() < 2 {
+            message_trio(
+                &pairs[pairs.len() - 1][0],
+                &pairs[pairs.len() - 2][0],
+                &pairs[pairs.len() - 2][1],
+            )
+            .await;
+        } else {
+            // second to last pair
+            message_pair(pairs[pairs.len() - 2]).await;
+
+            // Last pair
+            message_pair(pairs[pairs.len() - 1]).await;
+        }
     }
 
     Ok(())
+}
+
+async fn get_channels_users(_channel: Channel) -> anyhow::Result<Vec<User>> {
+    // TODO: get users from slack
+    let users = Vec::new();
+
+    Ok(users)
 }
 
 // TODO: come up with a couple different message
