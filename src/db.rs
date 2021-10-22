@@ -3,12 +3,6 @@ use mongodb::{bson::doc, options::UpdateOptions, Database};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
-pub struct User {
-    pub user_id: String,
-    pub user_name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 pub struct Channel {
     pub channel_id: String,
     pub channel_name: String,
@@ -24,8 +18,10 @@ pub async fn add_channel(db: Database, channel: Channel) -> anyhow::Result<()> {
             doc! { "channel_id": channel.channel_id.clone() },
             // TODO: impl this? gotta be a better way
             doc! {
-                "channel_id": channel.channel_id.clone(),
-                "channel_name": channel.channel_name.clone()
+                "$set": {
+                    "channel_id": channel.channel_id.clone(),
+                    "channel_name": channel.channel_name.clone()
+                }
             },
             options,
         )
