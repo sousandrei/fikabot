@@ -89,7 +89,7 @@ async fn join_command(
     let message = match db::add_channel(db, channel).await {
         Ok(_) => "You just started the Fika roullete on this channel! :doughnut:",
         Err(e) => {
-            error!("Error channel user: {}", e);
+            error!("Error adding channel: {}", e);
             "There was an error trying to start the fika roullete here. Try again soon :thinking_face:"
         }
     };
@@ -117,7 +117,7 @@ async fn leave_command(
         Ok(_) => "Sad to see you leave :cry:",
         Err(e) => {
             error!("Error deleting user: {}", e);
-            "There was an error trying to delete you. Try again soon :thinking_face:"
+            "There was an error trying to disable the bot here. Try again soon :thinking_face:"
         }
     };
 
