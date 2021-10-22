@@ -75,7 +75,7 @@ async fn message_pair(pair: &[String]) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn message_trio(user1: &String, user2: &String, user3: &String) -> anyhow::Result<()> {
+async fn message_trio(user1: &str, user2: &str, user3: &str) -> anyhow::Result<()> {
     slack::send_message(
         user1,
         format!(
