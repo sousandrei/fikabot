@@ -1,13 +1,13 @@
+use async_std::task::{sleep, JoinHandle};
 use chrono::Utc;
 use cron::Schedule;
 use std::str::FromStr;
-use tokio::{task::JoinHandle, time::sleep};
 use tracing::info;
 
 use crate::algos;
 
 pub fn start() -> JoinHandle<anyhow::Result<()>> {
-    tokio::spawn(async move {
+    async_std::task::spawn(async move {
         // Every 10 seconds
         // let expression = "*/10 * * * * *";
 
