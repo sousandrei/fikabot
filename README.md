@@ -3,13 +3,20 @@
 
 ## Fika Bot
 
-FikaBot is a simple Slack bot to match two random registered people for them to have some [Fika](https://sweden.se/culture-traditions/fika)!
+FikaBot is a simple Slack bot to match two random people in a channel so they can have some [Fika](https://sweden.se/culture-traditions/fika)!
 
 ## Usage
 
-First you are going to need a Slack application. FikaBot needs only the permission to send DM's to users.
+First you are going to need a Slack application. FikaBot needs the following permissions
 
-The application itself only needs 2 environment variables to function!
+```
+- commands
+- im:write
+- users:write
+- channels:read
+```
+
+The application needs 2 environment variables to function!
 
 ```sh
 SLACK_TOKEN='xoxb-......'
@@ -33,9 +40,3 @@ cargo build --release
 ## Contributing
 
 Don't hesitate to ask for features and open PR's.
-
-#### Pending Features
-
-- Randomized messages when interacting with the user
-- Store past fikas to try to avoid repetition
-- Conversation topic generator
