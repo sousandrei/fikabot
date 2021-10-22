@@ -1,6 +1,6 @@
 [package]
 authors = ["Andrei Sousa <sousandrei@gmail.com>"]
-edition = "2018"
+edition = "2021"
 name = "fika"
 version = "0.1.0"
 
