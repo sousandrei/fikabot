@@ -1,18 +1,13 @@
-use mongodb::Client;
 use rand::{prelude::SliceRandom, thread_rng};
-use tracing::log::info;
+use tracing::info;
 
 use crate::{
-    db,
+    db::Channel,
     slack::{self, get_channel_users},
 };
 
 pub async fn matchmake() -> anyhow::Result<()> {
-    // TODO: abstract DB / move from mongo?
-    let client = Client::with_uri_str("mongodb://localhost:27017").await?;
-    let db = client.database("fika");
-
-    let channels = db::list_channels(db).await?;
+    let channels = Channel::list_channels().await?;
 
     for channel in channels {
         let mut users = get_channel_users(&channel.channel_id).await?;
