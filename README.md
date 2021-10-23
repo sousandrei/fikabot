@@ -16,6 +16,13 @@ First you are going to need a Slack application. FikaBot needs the following per
 - channels:read
 ```
 
+On top of that, you'll need to create two slash commands, all pointing to a `/commands` url
+
+```
+/fika_start
+/fika_stop
+```
+
 The application needs 2 environment variables to function!
 
 ```sh
