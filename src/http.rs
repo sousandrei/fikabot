@@ -83,10 +83,15 @@ async fn song_command(body: SlackCommandBody) -> tide::Result {
         ..
     } = body;
 
+    let song = match validate_url(text) {
+        Some(url) => url,
+        None => return Ok("This url is not valid :/".into()),
+    };
+
     let user = User {
         user_id,
         user_name,
-        song: text,
+        song,
     };
 
     let message = match user.save().await {
@@ -99,3 +104,43 @@ async fn song_command(body: SlackCommandBody) -> tide::Result {
 
     Ok(message.into())
 }
+
+const VALID_URLS: [&str; 5] = [
+    "open.spotify.com",
+    "youtube.com",
+    "youtu.be",
+    "music.youtube.com",
+    "soundcloud.com",
+];
+
+fn validate_url(url: String) -> Option<String> {
+    let url = url
+        .replace("https://", "")
+        .replace("http://", "")
+        .replace("www.", "");
+
+    for valid_url in VALID_URLS {
+        if url.starts_with(valid_url) {
+            return Some(url);
+        }
+    }
+
+    None
+}
+
+// TODO: Free test cases
+// dbg!(validate_url("https://music.youtube.com/watch?v=pA_v6zYJDAI&feature=share".into()));
+// dbg!(validate_url("https://www.youtube.com/watch?v=AV1mu0rsHxc".into()));
+// dbg!(validate_url("https://youtu.be/AV1mu0rsHxc".into()));
+
+// dbg!(validate_url("http://music.youtube.com/watch?v=pA_v6zYJDAI&feature=share".into()));
+// dbg!(validate_url("http://www.youtube.com/watch?v=AV1mu0rsHxc".into()));
+// dbg!(validate_url("http://youtu.be/AV1mu0rsHxc".into()));
+
+// dbg!(validate_url("https://open.spotify.com/track/3BGj9WOKMyl2ZlkK8IoKhq?si=8771121b200647e5".into()));
+
+// dbg!(validate_url("youtu.be/AV1mu0rsHxc".into()));
+// dbg!(validate_url("e/AV1mu0rsHxc".into()));
+// dbg!(validate_url("barracuda".into()));
+// dbg!(validate_url("u.be/AV1mu0rsHxc".into()));
+// dbg!(validate_url("http://a.be/AV1mu0rsHxc".into()));
