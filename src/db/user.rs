@@ -1,4 +1,8 @@
-use mongodb::{bson::doc, options::UpdateOptions};
+use futures_util::StreamExt;
+use mongodb::{
+    bson::{self, doc},
+    options::UpdateOptions,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::db::get_db;
@@ -21,12 +25,7 @@ impl User {
         users
             .update_one(
                 doc! { "user_id": self.user_id.clone() },
-                doc! {
-                    "$set": {
-                        "user_id": self.user_id.clone(),
-                        "user_name": self.user_name.clone()
-                    }
-                },
+                doc! { "$set": bson::to_document(self)? },
                 options,
             )
             .await?;
@@ -43,5 +42,26 @@ impl User {
         users.delete_one(doc! { "user_id": user }, None).await?;
 
         Ok(())
+    }
+
+    pub async fn list() -> anyhow::Result<Vec<User>> {
+        let db = get_db().await?;
+
+        let users = db.collection::<User>("users");
+
+        let result = users
+            .find(None, None)
+            .await?
+            .filter_map(|channel| async move {
+                match channel {
+                    Ok(c) => Some(c),
+                    // TODO: proper log errors
+                    Err(_) => None,
+                }
+            })
+            .collect::<Vec<User>>()
+            .await;
+
+        Ok(result)
     }
 }

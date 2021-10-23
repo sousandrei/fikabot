@@ -1,5 +1,8 @@
 use futures_util::stream::StreamExt;
-use mongodb::{bson::doc, options::UpdateOptions};
+use mongodb::{
+    bson::{self, doc},
+    options::UpdateOptions,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::db::get_db;
@@ -21,12 +24,7 @@ impl Channel {
         channels
             .update_one(
                 doc! { "channel_id": self.channel_id.clone() },
-                doc! {
-                    "$set": {
-                        "channel_id": self.channel_id.clone(),
-                        "channel_name": self.channel_name.clone()
-                    }
-                },
+                doc! { "$set": bson::to_document(self)? },
                 options,
             )
             .await?;
