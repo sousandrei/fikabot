@@ -30,13 +30,13 @@ async fn parse_commands(mut req: Request<()>) -> tide::Result {
     let body: SlackCommandBody = req.body_form().await?;
 
     match body.command.as_str() {
-        "/fika_join" => join_command(body).await,
-        "/fika_leave" => leave_command(body).await,
+        "/fika_start" => start_command(body).await,
+        "/fika_stop" => stop_command(body).await,
         _ => Ok("Command not found".into()),
     }
 }
 
-async fn join_command(body: SlackCommandBody) -> tide::Result {
+async fn start_command(body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody {
         channel_id,
         channel_name,
@@ -59,11 +59,11 @@ async fn join_command(body: SlackCommandBody) -> tide::Result {
     Ok(message.into())
 }
 
-async fn leave_command(body: SlackCommandBody) -> tide::Result {
+async fn stop_command(body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody { channel_id, .. } = body;
 
     let message = match Channel::del_channel(&channel_id).await {
-        Ok(_) => "Sad to see you leave :cry:",
+        Ok(_) => "Sad to see you stop :cry:",
         Err(e) => {
             error!("Error deleting user: {}", e);
             "There was an error trying to disable the bot here. Try again soon :thinking_face:"
