@@ -2,12 +2,12 @@ use rand::{prelude::SliceRandom, thread_rng};
 use tracing::info;
 
 use crate::{
-    db::Channel,
+    db::channel::Channel,
     slack::{self, get_channel_users},
 };
 
 pub async fn matchmake() -> anyhow::Result<()> {
-    let channels = Channel::list_channels().await?;
+    let channels = Channel::list().await?;
 
     for channel in channels {
         let mut users = get_channel_users(&channel.channel_id).await?;
