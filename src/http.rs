@@ -10,6 +10,7 @@ struct SlackCommandBody {
     command: String,
     channel_id: String,
     channel_name: String,
+    text: String,
 }
 
 pub async fn start() -> anyhow::Result<()> {
@@ -32,6 +33,7 @@ async fn parse_commands(mut req: Request<()>) -> tide::Result {
     match body.command.as_str() {
         "/fika_start" => start_command(body).await,
         "/fika_stop" => stop_command(body).await,
+        "/fika_song" => song_command(body).await,
         _ => Ok("Command not found".into()),
     }
 }
@@ -67,6 +69,31 @@ async fn stop_command(body: SlackCommandBody) -> tide::Result {
         Err(e) => {
             error!("Error deleting user: {}", e);
             "There was an error trying to disable the bot here. Try again soon :thinking_face:"
+        }
+    };
+
+    Ok(message.into())
+}
+
+async fn song_command(body: SlackCommandBody) -> tide::Result {
+    let SlackCommandBody {
+        user_id,
+        user_name,
+        text,
+        ..
+    } = body;
+
+    let user = User {
+        user_id,
+        user_name,
+        song: text,
+    };
+
+    let message = match user.save().await {
+        Ok(_) => "Your song is saved for this week! :partyparrot:",
+        Err(e) => {
+            error!("Error saving user: {}", e);
+            "There was an error trying to save your song. Try again soon :thinking_face:"
         }
     };
 
