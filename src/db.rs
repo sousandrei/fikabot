@@ -1,8 +1,16 @@
+use futures_util::stream::StreamExt;
+use mongodb::{bson::doc, options::UpdateOptions, Client, Database};
+use serde::{Deserialize, Serialize};
 use std::env;
 
-use futures_util::stream::StreamExt;
-use mongodb::{bson::doc, options::UpdateOptions, Client};
-use serde::{Deserialize, Serialize};
+async fn get_db() -> anyhow::Result<Database> {
+    let mongo_url = env::var("MONGO_URL").expect("MONGO_URL not present on environment");
+
+    let client = Client::with_uri_str(&mongo_url).await?;
+    let db = client.database("fika");
+
+    Ok(db)
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 pub struct Channel {
@@ -12,11 +20,7 @@ pub struct Channel {
 
 impl Channel {
     pub async fn save(&self) -> anyhow::Result<()> {
-        // TODO: not crash hard if env is not here
-        let mongo_url = env::var("MONGO_URL").expect("MONGO_URL not present on environment");
-
-        let client = Client::with_uri_str(&mongo_url).await?;
-        let db = client.database("fika");
+        let db = get_db().await?;
 
         let channels = db.collection::<Channel>("channels");
 
@@ -39,10 +43,7 @@ impl Channel {
     }
 
     pub async fn del_channel(channel: &str) -> anyhow::Result<()> {
-        let mongo_url = env::var("MONGO_URL").expect("MONGO_URL not present on environment");
-
-        let client = Client::with_uri_str(&mongo_url).await?;
-        let db = client.database("fika");
+        let db = get_db().await?;
 
         let channels = db.collection::<Channel>("channels");
 
@@ -55,10 +56,7 @@ impl Channel {
     }
 
     pub async fn list_channels() -> anyhow::Result<Vec<Channel>> {
-        let mongo_url = env::var("MONGO_URL").expect("MONGO_URL not present on environment");
-
-        let client = Client::with_uri_str(&mongo_url).await?;
-        let db = client.database("fika");
+        let db = get_db().await?;
 
         let channels = db.collection::<Channel>("channels");
 
