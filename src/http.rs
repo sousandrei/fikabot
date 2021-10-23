@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tide::{log::error, Request};
 
-use crate::db::Channel;
+use crate::db::{channel::Channel, user::User};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 struct SlackCommandBody {
@@ -62,7 +62,7 @@ async fn start_command(body: SlackCommandBody) -> tide::Result {
 async fn stop_command(body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody { channel_id, .. } = body;
 
-    let message = match Channel::del_channel(&channel_id).await {
+    let message = match Channel::delete(&channel_id).await {
         Ok(_) => "Sad to see you stop :cry:",
         Err(e) => {
             error!("Error deleting user: {}", e);
