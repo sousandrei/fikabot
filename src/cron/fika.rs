@@ -11,7 +11,7 @@ pub async fn start() -> anyhow::Result<()> {
     // let expression = "*/10 * * * * *";
 
     // Every Monday 10h30
-    let expression = "* 30 10 * * 2 *";
+    let expression = "* 30 8 * * 2 *";
 
     let schedule = Schedule::from_str(expression)?;
 
