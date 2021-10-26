@@ -14,6 +14,10 @@ RUN cargo build --release
 
 FROM rust
 
+ENV SLACK_TOKEN ""
+ENV MONGO_URL ""
+ENV PORT 8080
+
 WORKDIR /opt/
 
 COPY --from=builder /opt/fika/target/release/fikabot .
