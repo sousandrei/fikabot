@@ -8,6 +8,8 @@ mod slack;
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
+    check_env_vars();
+
     if env::var_os("RUST_LOG").is_none() {
         env::set_var("RUST_LOG", "info");
     }
@@ -18,4 +20,19 @@ async fn main() -> anyhow::Result<()> {
     http::start().await?;
 
     Ok(())
+}
+
+fn check_env_vars() {
+    let envs = ["MONGO_URL", "SLACK_TOKEN"];
+
+    for env in envs {
+        let var = match env::var(env) {
+            Ok(value) => value,
+            Err(e) => panic!("{}", e),
+        };
+
+        if var.is_empty() {
+            panic!("{} is empty", env);
+        }
+    }
 }

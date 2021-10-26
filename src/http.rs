@@ -1,3 +1,5 @@
+use std::env;
+
 use serde::{Deserialize, Serialize};
 use tide::{log::error, Request};
 
@@ -17,14 +19,21 @@ pub async fn start() -> anyhow::Result<()> {
     let mut app = tide::Server::new();
 
     app.at("/commands").post(parse_commands);
+    app.at("/ping").get(ping);
 
     // TODO: health
     // let metrics = warp::path!("metrics").map(|| StatusCode::OK);
     // let healthcheck = warp::path!("healthchecks").map(|| StatusCode::OK);
 
-    app.listen("127.0.0.1:8080").await?;
+    let port = env::var("PORT")?;
+
+    app.listen(format!("0.0.0.0:{}", port)).await?;
 
     Ok(())
+}
+
+async fn ping(_: Request<()>) -> tide::Result {
+    Ok("pong!".into())
 }
 
 async fn parse_commands(mut req: Request<()>) -> tide::Result {
