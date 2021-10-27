@@ -28,7 +28,7 @@ fn check_env_vars() {
     for env in envs {
         let var = match env::var(env) {
             Ok(value) => value,
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{}: {}", e, env),
         };
 
         if var.is_empty() {
