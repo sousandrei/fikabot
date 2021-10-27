@@ -7,8 +7,8 @@ use crate::{
     slack::{self},
 };
 
-pub async fn matchmake() -> anyhow::Result<()> {
-    let mut users = User::list().await?;
+pub fn matchmake() -> anyhow::Result<()> {
+    let mut users = User::list()?;
 
     // Shuffle people
     users.shuffle(&mut thread_rng());
@@ -30,13 +30,13 @@ pub async fn matchmake() -> anyhow::Result<()> {
     // Just one pair, handle naively
     if pairs.len() < 2 {
         info!("one pair");
-        message_pair(pairs[0]).await?;
+        message_pair(pairs[0])?;
         return Ok(());
     }
 
     // Send message to pairs
     for pair in pairs.iter().take(pairs.len() - 2) {
-        message_pair(pair).await?;
+        message_pair(pair)?;
     }
 
     // If we have a trio, last pair is 1 person
@@ -46,14 +46,13 @@ pub async fn matchmake() -> anyhow::Result<()> {
             &pairs[pairs.len() - 1][0],
             &pairs[pairs.len() - 2][0],
             &pairs[pairs.len() - 2][1],
-        )
-        .await?;
+        )?;
     } else {
         // second to last pair
-        message_pair(pairs[pairs.len() - 2]).await?;
+        message_pair(pairs[pairs.len() - 2])?;
 
         // Last pair
-        message_pair(pairs[pairs.len() - 1]).await?;
+        message_pair(pairs[pairs.len() - 1])?;
     }
 
     Ok(())
@@ -66,19 +65,19 @@ fmt_reuse! {
      we'll try again next week or you can alwyas submit a new one :D";
 }
 
-async fn message_pair(pair: &[User]) -> anyhow::Result<()> {
+fn message_pair(pair: &[User]) -> anyhow::Result<()> {
     if let [user1, user2] = pair {
-        slack::send_message(&user1.user_id, fmt!(SONG, user1.user_id)).await?;
-        slack::send_message(&user2.user_id, fmt!(SONG, user2.user_id)).await?;
+        slack::send_message(&user1.user_id, fmt!(SONG, user1.user_id))?;
+        slack::send_message(&user2.user_id, fmt!(SONG, user2.user_id))?;
     }
 
     Ok(())
 }
 
-async fn message_trio(user1: &User, user2: &User, user3: &User) -> anyhow::Result<()> {
-    slack::send_message(&user1.user_id, fmt!(SONG, user2.user_id)).await?;
-    slack::send_message(&user2.user_id, fmt!(SONG, user1.user_id)).await?;
-    slack::send_message(&user3.user_id, fmt!(SONG, user2.user_id)).await?;
+fn message_trio(user1: &User, user2: &User, user3: &User) -> anyhow::Result<()> {
+    slack::send_message(&user1.user_id, fmt!(SONG, user2.user_id))?;
+    slack::send_message(&user2.user_id, fmt!(SONG, user1.user_id))?;
+    slack::send_message(&user3.user_id, fmt!(SONG, user2.user_id))?;
 
     Ok(())
 }

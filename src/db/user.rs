@@ -1,4 +1,3 @@
-use futures_util::StreamExt;
 use mongodb::{
     bson::{self, doc},
     options::UpdateOptions,
@@ -15,52 +14,48 @@ pub struct User {
 }
 
 impl User {
-    pub async fn save(&self) -> anyhow::Result<()> {
-        let db = get_db().await?;
+    pub fn save(&self) -> anyhow::Result<()> {
+        let db = get_db()?;
 
         let users = db.collection::<User>("users");
 
         let options = UpdateOptions::builder().upsert(true).build();
 
-        users
-            .update_one(
-                doc! { "user_id": self.user_id.clone() },
-                doc! { "$set": bson::to_document(self)? },
-                options,
-            )
-            .await?;
+        users.update_one(
+            doc! { "user_id": self.user_id.clone() },
+            doc! { "$set": bson::to_document(self)? },
+            options,
+        )?;
 
         Ok(())
     }
 
-    pub async fn _delete(user: &str) -> anyhow::Result<()> {
-        let db = get_db().await?;
+    pub fn _delete(user: &str) -> anyhow::Result<()> {
+        let db = get_db()?;
 
         let users = db.collection::<User>("users");
 
         // TODO: filter error for channel not there
-        users.delete_one(doc! { "user_id": user }, None).await?;
+        users.delete_one(doc! { "user_id": user }, None)?;
 
         Ok(())
     }
 
-    pub async fn list() -> anyhow::Result<Vec<User>> {
-        let db = get_db().await?;
+    pub fn list() -> anyhow::Result<Vec<User>> {
+        let db = get_db()?;
 
         let users = db.collection::<User>("users");
 
         let result = users
-            .find(None, None)
-            .await?
-            .filter_map(|channel| async move {
+            .find(None, None)?
+            .filter_map(|channel| {
                 match channel {
                     Ok(c) => Some(c),
                     // TODO: proper log errors
                     Err(_) => None,
                 }
             })
-            .collect::<Vec<User>>()
-            .await;
+            .collect::<Vec<User>>();
 
         Ok(result)
     }
