@@ -25,7 +25,7 @@ pub async fn start() -> anyhow::Result<()> {
     // let metrics = warp::path!("metrics").map(|| StatusCode::OK);
     // let healthcheck = warp::path!("healthchecks").map(|| StatusCode::OK);
 
-    let port = env::var("PORT").unwrap_or("8080".into());
+    let port = env::var("PORT").unwrap_or_else(|_| "8080".into());
 
     app.listen(format!("0.0.0.0:{}", port)).await?;
 
