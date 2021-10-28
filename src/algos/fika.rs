@@ -36,29 +36,30 @@ pub fn matchmake() -> anyhow::Result<()> {
         // Just one pair, handle naively
         if pairs.len() < 2 {
             info!("one pair");
-            message_pair(pairs[0])?;
+            message_pair(&channel, pairs[0])?;
             continue;
         }
 
         // Send message to pairs
         for pair in pairs.iter().take(pairs.len() - 2) {
-            message_pair(pair)?;
+            message_pair(&channel, pair)?;
         }
 
         // If we have a trio, last pair is 1 person
         if pairs[pairs.len() - 1].len() < 2 {
             // Uses messages a trio
             message_trio(
+                &channel,
                 &pairs[pairs.len() - 1][0],
                 &pairs[pairs.len() - 2][0],
                 &pairs[pairs.len() - 2][1],
             )?;
         } else {
             // second to last pair
-            message_pair(pairs[pairs.len() - 2])?;
+            message_pair(&channel, pairs[pairs.len() - 2])?;
 
             // Last pair
-            message_pair(pairs[pairs.len() - 1])?;
+            message_pair(&channel, pairs[pairs.len() - 1])?;
         }
     }
 
@@ -67,23 +68,28 @@ pub fn matchmake() -> anyhow::Result<()> {
 
 // TODO: come up with a couple different message
 fmt_reuse! {
-    FIKA_PAIR = "This week your fika pair is<@{}>!";
-    FIKA_TRIO = "Here is your \"pair\" for this week. <@{}> and <@{}>!\nThis time you got an extra buddy! ;)";
+    FIKA_PAIR = "This week your fika pair for channel `{}` is<@{}>!";
+    FIKA_TRIO = "This week your fika \"pair\"(s) for channel `{}` are <@{}> and <@{}>!\nThis time you got an extra buddy! ;)";
 }
 
-pub fn message_pair(pair: &[String]) -> anyhow::Result<()> {
+pub fn message_pair(channel: &Channel, pair: &[String]) -> anyhow::Result<()> {
     if let [user1, user2] = pair {
-        slack::send_message(user1, fmt!(FIKA_PAIR, user1))?;
-        slack::send_message(user2, fmt!(FIKA_PAIR, user2))?;
+        slack::send_message(user1, fmt!(FIKA_PAIR, user1, channel.channel_name))?;
+        slack::send_message(user2, fmt!(FIKA_PAIR, user2, channel.channel_name))?;
     }
 
     Ok(())
 }
 
-pub fn message_trio(user1: &str, user2: &str, user3: &str) -> anyhow::Result<()> {
-    slack::send_message(user1, fmt!(FIKA_TRIO, user2, user3))?;
-    slack::send_message(user2, fmt!(FIKA_TRIO, user1, user3))?;
-    slack::send_message(user3, fmt!(FIKA_TRIO, user1, user2))?;
+pub fn message_trio(
+    channel: &Channel,
+    user1: &str,
+    user2: &str,
+    user3: &str,
+) -> anyhow::Result<()> {
+    slack::send_message(user1, fmt!(FIKA_TRIO, user2, user3, channel.channel_name))?;
+    slack::send_message(user2, fmt!(FIKA_TRIO, user1, user3, channel.channel_name))?;
+    slack::send_message(user3, fmt!(FIKA_TRIO, user1, user2, channel.channel_name))?;
 
     Ok(())
 }
