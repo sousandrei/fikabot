@@ -11,7 +11,7 @@ pub async fn start() -> anyhow::Result<()> {
     // let expression = "*/10 * * * * *";
 
     // Every Monday 10h30
-    let expression = "* 30 8 * * 2 *";
+    let expression = "0 30 8 * * 2 *";
 
     let schedule = Schedule::from_str(expression)?;
 
@@ -29,7 +29,7 @@ pub async fn start() -> anyhow::Result<()> {
         sleep(diff.to_std()?).await;
 
         if let Err(e) = algos::fika::matchmake() {
-            error!("{}", e);
+            error!("Error on matchmaking: {}", e);
         };
 
         next = schedule.upcoming(Utc).take(1).next().unwrap();
