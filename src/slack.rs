@@ -1,5 +1,9 @@
+use hmac::{Hmac, Mac, NewMac};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::env;
+use tide::StatusCode;
+use tracing::info;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 struct SlackMessage {
@@ -64,4 +68,33 @@ pub fn get_channel_users(channel_id: &str) -> anyhow::Result<Vec<String>> {
     }
 
     Ok(users)
+}
+
+// Create alias for HMAC-SHA256
+type HmacSha256 = Hmac<Sha256>;
+
+pub fn verify_slack(expt_sign: &str, ts: &str, body: &str) -> Result<(), StatusCode> {
+    let signing_secret =
+        env::var("SLACK_SIGNING_SECRET").expect("SLACK_SIGNING_SECRET not present");
+
+    // To verify the message:
+    let mut mac = match HmacSha256::new_from_slice(signing_secret.as_bytes()) {
+        Ok(mac) => mac,
+        Err(e) => {
+            info!("canot start hmacsha256: {}", e);
+            return Err(StatusCode::InternalServerError);
+        }
+    };
+
+    let signature_base = format!("v0:{}:{}", ts, body);
+
+    mac.update(signature_base.as_bytes());
+
+    let sig = format!("v0={}", hex::encode(mac.finalize().into_bytes()));
+
+    if sig != expt_sign {
+        return Err(StatusCode::Unauthorized);
+    }
+
+    Ok(())
 }
