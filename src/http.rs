@@ -25,7 +25,7 @@ pub async fn start() -> anyhow::Result<()> {
     // let metrics = warp::path!("metrics").map(|| StatusCode::OK);
     // let healthcheck = warp::path!("healthchecks").map(|| StatusCode::OK);
 
-    let port = env::var("PORT").unwrap_or("8080".into());
+    let port = env::var("PORT").unwrap_or_else(|_| "8080".into());
 
     app.listen(format!("0.0.0.0:{}", port)).await?;
 
@@ -40,14 +40,14 @@ async fn parse_commands(mut req: Request<()>) -> tide::Result {
     let body: SlackCommandBody = req.body_form().await?;
 
     match body.command.as_str() {
-        "/fika_start" => start_command(body).await,
-        "/fika_stop" => stop_command(body).await,
-        "/fika_song" => song_command(body).await,
+        "/fika_start" => start_command(body),
+        "/fika_stop" => stop_command(body),
+        "/fika_song" => song_command(body),
         _ => Ok("Command not found".into()),
     }
 }
 
-async fn start_command(body: SlackCommandBody) -> tide::Result {
+fn start_command(body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody {
         channel_id,
         channel_name,
@@ -59,7 +59,7 @@ async fn start_command(body: SlackCommandBody) -> tide::Result {
         channel_name,
     };
 
-    let message = match channel.save().await {
+    let message = match channel.save() {
         Ok(_) => "You just started the Fika roullete on this channel! :doughnut:",
         Err(e) => {
             error!("Error adding channel: {}", e);
@@ -70,10 +70,10 @@ async fn start_command(body: SlackCommandBody) -> tide::Result {
     Ok(message.into())
 }
 
-async fn stop_command(body: SlackCommandBody) -> tide::Result {
+fn stop_command(body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody { channel_id, .. } = body;
 
-    let message = match Channel::delete(&channel_id).await {
+    let message = match Channel::delete(&channel_id) {
         Ok(_) => "Sad to see you stop :cry:",
         Err(e) => {
             error!("Error deleting user: {}", e);
@@ -84,7 +84,7 @@ async fn stop_command(body: SlackCommandBody) -> tide::Result {
     Ok(message.into())
 }
 
-async fn song_command(body: SlackCommandBody) -> tide::Result {
+fn song_command(body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody {
         user_id,
         user_name,
@@ -103,7 +103,7 @@ async fn song_command(body: SlackCommandBody) -> tide::Result {
         song,
     };
 
-    let message = match user.save().await {
+    let message = match user.save() {
         Ok(_) => "Your song is saved for this week! :partyparrot:",
         Err(e) => {
             error!("Error saving user: {}", e);

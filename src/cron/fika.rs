@@ -2,7 +2,7 @@ use async_std::task::sleep;
 use chrono::Utc;
 use cron::Schedule;
 use std::str::FromStr;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::algos;
 
@@ -28,7 +28,9 @@ pub async fn start() -> anyhow::Result<()> {
 
         sleep(diff.to_std()?).await;
 
-        algos::fika::matchmake().await?;
+        if let Err(e) = algos::fika::matchmake() {
+            error!("{}", e);
+        };
 
         next = schedule.upcoming(Utc).take(1).next().unwrap();
         info!("next {:?}", next);

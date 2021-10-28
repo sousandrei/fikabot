@@ -28,7 +28,7 @@ pub async fn start() -> anyhow::Result<()> {
 
         sleep(diff.to_std()?).await;
 
-        algos::song::matchmake().await?;
+        algos::song::matchmake()?;
 
         next = schedule.upcoming(Utc).take(1).next().unwrap();
         info!("next {:?}", next);
