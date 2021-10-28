@@ -1,9 +1,11 @@
-use std::env;
-
 use serde::{Deserialize, Serialize};
-use tide::{log::error, Request};
+use std::env;
+use tide::{log::error, Request, Response};
 
-use crate::db::{channel::Channel, user::User};
+use crate::{
+    db::{channel::Channel, user::User},
+    slack,
+};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 struct SlackCommandBody {
@@ -37,7 +39,16 @@ async fn ping(_: Request<()>) -> tide::Result {
 }
 
 async fn parse_commands(mut req: Request<()>) -> tide::Result {
-    let body: SlackCommandBody = req.body_form().await?;
+    let timestamp = req.header("X-Slack-Request-Timestamp").cloned().unwrap();
+    let signature = req.header("X-Slack-Signature").cloned().unwrap();
+
+    let body = req.body_string().await?;
+
+    if let Err(e) = slack::verify_slack(signature.as_str(), timestamp.as_str(), &body) {
+        return Ok(Response::new(e));
+    }
+
+    let body: SlackCommandBody = serde_qs::from_str(&body)?;
 
     match body.command.as_str() {
         "/fika_start" => start_command(body),
