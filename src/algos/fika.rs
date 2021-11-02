@@ -47,6 +47,8 @@ pub fn matchmake() -> anyhow::Result<()> {
 
         // If we have a trio, last pair is 1 person
         if pairs[pairs.len() - 1].len() < 2 {
+            info!("one trio");
+
             // Uses messages a trio
             message_trio(
                 &channel,
@@ -55,6 +57,8 @@ pub fn matchmake() -> anyhow::Result<()> {
                 &pairs[pairs.len() - 2][1],
             )?;
         } else {
+            info!("two last pairs");
+
             // second to last pair
             message_pair(&channel, pairs[pairs.len() - 2])?;
 
