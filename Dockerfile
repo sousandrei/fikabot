@@ -10,9 +10,9 @@ RUN cargo build --release
 # Remove temporary main and actually build our code
 RUN rm -rf ./target/release/.fingerprint/fikabot*
 ADD src src
-RUN cargo build --release
+RUN cargo build --release 
 
-FROM rust
+FROM ubuntu
 
 ENV SLACK_TOKEN ""
 ENV MONGO_URL ""
@@ -20,8 +20,14 @@ ENV PORT 8080
 
 WORKDIR /opt/
 
-COPY --from=builder /opt/fika/target/release/fikabot .
+# Add Tini
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+ENTRYPOINT ["/tini", "--"]
+
+COPY --from=builder /opt/fika/target/release/fikabot /opt/fikabot
 
 RUN chmod +x /opt/fikabot
 
-ENTRYPOINT [ "/opt/fikabot" ]
+CMD [ "/opt/fikabot" ]
