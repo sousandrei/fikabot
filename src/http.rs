@@ -65,6 +65,10 @@ fn start_command(body: SlackCommandBody) -> tide::Result {
         ..
     } = body;
 
+    if channel_name == "general" {
+        return Ok("Fika is not allowed in general :/".into());
+    }
+
     let channel = Channel {
         channel_id,
         channel_name,
