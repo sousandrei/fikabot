@@ -18,6 +18,10 @@ ENV SLACK_TOKEN ""
 ENV MONGO_URL ""
 ENV PORT 8080
 
+RUN apt update && \
+    apt upgrade -y && \
+    apt install -y libssl-dev
+
 WORKDIR /opt/
 
 # Add Tini
