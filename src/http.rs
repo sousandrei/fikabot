@@ -3,6 +3,7 @@ use std::env;
 use tide::{log::error, Request, Response};
 
 use crate::{
+    algos::fika::matchmake_channel,
     db::{channel::Channel, user::User},
     slack,
 };
@@ -51,11 +52,33 @@ async fn parse_commands(mut req: Request<()>) -> tide::Result {
     let body: SlackCommandBody = serde_qs::from_str(&body)?;
 
     match body.command.as_str() {
+        "/fika_now" => now_command(body),
         "/fika_start" => start_command(body),
         "/fika_stop" => stop_command(body),
         "/fika_song" => song_command(body),
         _ => Ok("Command not found".into()),
     }
+}
+
+fn now_command(body: SlackCommandBody) -> tide::Result {
+    let SlackCommandBody {
+        channel_id,
+        channel_name,
+        ..
+    } = body;
+
+    if channel_name == "general" {
+        return Ok("Fika is not allowed in general :/".into());
+    }
+
+    let channel = Channel {
+        channel_id,
+        channel_name,
+    };
+
+    matchmake_channel(&channel)?;
+
+    Ok("Fika started!".into())
 }
 
 fn start_command(body: SlackCommandBody) -> tide::Result {

@@ -12,59 +12,65 @@ pub fn matchmake() -> anyhow::Result<()> {
     let channels = Channel::list()?;
 
     for channel in channels {
-        info!("processing channel: {}", channel.channel_name);
+        matchmake_channel(&channel)?;
+    }
 
-        let mut users = get_channel_users(&channel.channel_id)?;
+    Ok(())
+}
 
-        // Shuffle people
-        users.shuffle(&mut thread_rng());
+pub fn matchmake_channel(channel: &Channel) -> anyhow::Result<()> {
+    info!("processing channel: {}", channel.channel_name);
 
-        // Not enough people to pair
-        if users.len() < 2 {
-            info!("not enough ppl");
-            continue;
-        }
+    let mut users = get_channel_users(&channel.channel_id)?;
 
-        info!("chunking pairs");
-        let pairs: Vec<&[String]> = users.chunks(2).collect();
+    // Shuffle people
+    users.shuffle(&mut thread_rng());
 
-        if pairs.is_empty() {
-            info!("empty pairs");
-            continue;
-        }
+    // Not enough people to pair
+    if users.len() < 2 {
+        info!("not enough ppl");
+        return Ok(());
+    }
 
-        // Just one pair, handle naively
-        if pairs.len() < 2 {
-            info!("one pair");
-            message_pair(&channel, pairs[0])?;
-            continue;
-        }
+    info!("chunking pairs");
+    let pairs: Vec<&[String]> = users.chunks(2).collect();
 
-        // Send message to pairs
-        for pair in pairs.iter().take(pairs.len() - 2) {
-            message_pair(&channel, pair)?;
-        }
+    if pairs.is_empty() {
+        info!("empty pairs");
+        return Ok(());
+    }
 
-        // If we have a trio, last pair is 1 person
-        if pairs[pairs.len() - 1].len() < 2 {
-            info!("one trio");
+    // Just one pair, handle naively
+    if pairs.len() < 2 {
+        info!("one pair");
+        message_pair(&channel, pairs[0])?;
+        return Ok(());
+    }
 
-            // Uses messages a trio
-            message_trio(
-                &channel,
-                &pairs[pairs.len() - 1][0],
-                &pairs[pairs.len() - 2][0],
-                &pairs[pairs.len() - 2][1],
-            )?;
-        } else {
-            info!("two last pairs");
+    // Send message to pairs
+    for pair in pairs.iter().take(pairs.len() - 2) {
+        message_pair(&channel, pair)?;
+    }
 
-            // second to last pair
-            message_pair(&channel, pairs[pairs.len() - 2])?;
+    // If we have a trio, last pair is 1 person
+    if pairs[pairs.len() - 1].len() < 2 {
+        info!("one trio");
 
-            // Last pair
-            message_pair(&channel, pairs[pairs.len() - 1])?;
-        }
+        // Uses messages a trio
+        message_trio(
+            &channel,
+            &pairs[pairs.len() - 1][0],
+            &pairs[pairs.len() - 2][0],
+            &pairs[pairs.len() - 2][1],
+        )?;
+    } else {
+        info!("two last pairs");
+
+        // second to last pair
+        message_pair(&channel, pairs[pairs.len() - 2])?;
+
+        // Last pair
+        message_pair(&channel, pairs[pairs.len() - 1])?;
     }
 
     Ok(())
