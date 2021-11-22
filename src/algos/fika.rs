@@ -43,13 +43,13 @@ pub fn matchmake_channel(channel: &Channel) -> anyhow::Result<()> {
     // Just one pair, handle naively
     if pairs.len() < 2 {
         info!("one pair");
-        message_pair(&channel, pairs[0])?;
+        message_pair(channel, pairs[0])?;
         return Ok(());
     }
 
     // Send message to pairs
     for pair in pairs.iter().take(pairs.len() - 2) {
-        message_pair(&channel, pair)?;
+        message_pair(channel, pair)?;
     }
 
     // If we have a trio, last pair is 1 person
@@ -58,7 +58,7 @@ pub fn matchmake_channel(channel: &Channel) -> anyhow::Result<()> {
 
         // Uses messages a trio
         message_trio(
-            &channel,
+            channel,
             &pairs[pairs.len() - 1][0],
             &pairs[pairs.len() - 2][0],
             &pairs[pairs.len() - 2][1],
@@ -67,10 +67,10 @@ pub fn matchmake_channel(channel: &Channel) -> anyhow::Result<()> {
         info!("two last pairs");
 
         // second to last pair
-        message_pair(&channel, pairs[pairs.len() - 2])?;
+        message_pair(channel, pairs[pairs.len() - 2])?;
 
         // Last pair
-        message_pair(&channel, pairs[pairs.len() - 1])?;
+        message_pair(channel, pairs[pairs.len() - 1])?;
     }
 
     Ok(())
