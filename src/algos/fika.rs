@@ -97,9 +97,9 @@ pub fn message_trio(
     user2: &str,
     user3: &str,
 ) -> anyhow::Result<()> {
-    slack::send_message(user1, fmt!(FIKA_TRIO, channel.channel_name, user2, user3,))?;
-    slack::send_message(user2, fmt!(FIKA_TRIO, channel.channel_name, user1, user1,))?;
-    slack::send_message(user3, fmt!(FIKA_TRIO, channel.channel_name, user1, user2,))?;
+    slack::send_message(user1, fmt!(FIKA_TRIO, channel.channel_name, user2, user3))?;
+    slack::send_message(user2, fmt!(FIKA_TRIO, channel.channel_name, user1, user3))?;
+    slack::send_message(user3, fmt!(FIKA_TRIO, channel.channel_name, user1, user2))?;
 
     Ok(())
 }
