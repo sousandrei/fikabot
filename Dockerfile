@@ -12,7 +12,7 @@ RUN rm -rf ./target/release/.fingerprint/fikabot*
 ADD src src
 RUN cargo build --release 
 
-FROM ubuntu
+FROM rust
 
 ENV SLACK_TOKEN ""
 ENV MONGO_URL ""
