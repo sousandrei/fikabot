@@ -1,7 +1,6 @@
 use std::env;
 
 mod algos;
-mod cron;
 mod db;
 mod http;
 mod slack;
@@ -16,7 +15,6 @@ async fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::fmt::init();
 
-    cron::start();
     http::start().await?;
 
     Ok(())
@@ -29,6 +27,7 @@ fn check_env_vars() {
         "CREDENTIALS",
         "SLACK_TOKEN",
         "SLACK_SIGNING_SECRET",
+        "WEBHOOK_TOKEN",
     ];
 
     for env in envs {

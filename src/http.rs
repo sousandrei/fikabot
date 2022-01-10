@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::env;
-use tide::{log::error, Request, Response};
+use tide::{log::error, Request, Response, StatusCode};
 
 use crate::{
-    algos::fika::matchmake_channel,
+    algos::fika,
     db::{channel::Channel, user::User},
     slack,
 };
@@ -22,6 +22,7 @@ pub async fn start() -> anyhow::Result<()> {
     let mut app = tide::Server::new();
 
     app.at("/commands").post(parse_commands);
+    app.at("/start_fika").post(start_fika);
     app.at("/ping").get(ping);
 
     // TODO: health
@@ -37,6 +38,19 @@ pub async fn start() -> anyhow::Result<()> {
 
 async fn ping(_: Request<()>) -> tide::Result {
     Ok("pong!".into())
+}
+
+async fn start_fika(req: Request<()>) -> tide::Result {
+    let token = env::var("WEBHOOK_TOKEN").expect("WEBHOOK_TOKEN not present on environment");
+
+    let header_token = req.header("x-token");
+
+    if header_token.is_none() || *header_token.unwrap() != token {
+        return Ok(Response::new(StatusCode::Unauthorized));
+    }
+
+    fika::matchmake().await?;
+    Ok(Response::new(StatusCode::Ok))
 }
 
 async fn parse_commands(mut req: Request<()>) -> tide::Result {
@@ -76,7 +90,7 @@ async fn now_command(body: SlackCommandBody) -> tide::Result {
         channel_name,
     };
 
-    matchmake_channel(&channel)?;
+    fika::matchmake_channel(&channel)?;
 
     Ok("Fika started!".into())
 }
