@@ -23,7 +23,13 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn check_env_vars() {
-    let envs = ["MONGO_URL", "SLACK_TOKEN", "SLACK_SIGNING_SECRET"];
+    let envs = [
+        "SHEETS_ID",
+        "ACCOUNT_EMAIL",
+        "CREDENTIALS",
+        "SLACK_TOKEN",
+        "SLACK_SIGNING_SECRET",
+    ];
 
     for env in envs {
         let var = match env::var(env) {

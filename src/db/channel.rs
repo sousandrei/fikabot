@@ -1,10 +1,6 @@
-use mongodb::{
-    bson::{self, doc},
-    options::UpdateOptions,
-};
 use serde::{Deserialize, Serialize};
 
-use crate::db::get_db;
+use crate::db::{get_values, write_values, Response};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 pub struct Channel {
@@ -12,50 +8,49 @@ pub struct Channel {
     pub channel_name: String,
 }
 
+const SHEET: &str = "channels";
+
 impl Channel {
-    pub fn save(&self) -> anyhow::Result<()> {
-        let db = get_db()?;
+    pub async fn save(&self) -> anyhow::Result<()> {
+        let mut res: Response = get_values(SHEET).await?;
 
-        let channels = db.collection::<Channel>("channels");
+        res.values
+            .push(vec![self.channel_id.clone(), self.channel_name.clone()]);
 
-        let options = UpdateOptions::builder().upsert(true).build();
-
-        channels.update_one(
-            doc! { "channel_id": self.channel_id.clone() },
-            doc! { "$set": bson::to_document(self)? },
-            options,
-        )?;
+        write_values(SHEET, &res).await?;
 
         Ok(())
     }
 
-    pub fn delete(channel: &str) -> anyhow::Result<()> {
-        let db = get_db()?;
+    pub async fn delete(channel: &str) -> anyhow::Result<()> {
+        let mut res: Response = get_values(SHEET).await?;
 
-        let channels = db.collection::<Channel>("channels");
-
-        // TODO: filter error for channel not there
-        channels.delete_one(doc! { "channel_id": channel }, None)?;
-
-        Ok(())
-    }
-
-    pub fn list() -> anyhow::Result<Vec<Channel>> {
-        let db = get_db()?;
-
-        let channels = db.collection::<Channel>("channels");
-
-        let channels = channels
-            .find(None, None)?
-            .filter_map(|channel| {
-                match channel {
-                    Ok(c) => Some(c),
-                    // TODO: proper log errors
-                    Err(_) => None,
-                }
+        res.values = res
+            .values
+            .into_iter()
+            .map(|v| match v.contains(&channel.to_owned()) {
+                true => vec![String::new(); 2],
+                false => v,
             })
-            .collect::<Vec<Channel>>();
+            .collect();
 
-        Ok(channels)
+        write_values(SHEET, &res).await?;
+
+        Ok(())
+    }
+
+    pub async fn list() -> anyhow::Result<Vec<Channel>> {
+        let res: Response = get_values(SHEET).await?;
+
+        let cs = res
+            .values
+            .into_iter()
+            .map(|c| Channel {
+                channel_id: c[0].clone(),
+                channel_name: c[1].clone(),
+            })
+            .collect();
+
+        Ok(cs)
     }
 }
