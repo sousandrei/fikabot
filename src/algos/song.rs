@@ -10,6 +10,13 @@ use crate::{
 pub async fn matchmake() -> anyhow::Result<()> {
     let mut users = User::list().await?;
 
+    let bot = slack::get_bot_id().await?;
+
+    users = users
+        .into_iter()
+        .filter(|u| u.user_id != bot.bot_id && u.user_id != bot.user_id)
+        .collect();
+
     // Shuffle people
     users.shuffle(&mut thread_rng());
 

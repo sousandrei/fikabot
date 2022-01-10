@@ -23,7 +23,14 @@ pub async fn matchmake() -> anyhow::Result<()> {
 pub fn matchmake_channel(channel: &Channel) -> anyhow::Result<()> {
     info!("processing channel: {}", channel.channel_name);
 
+    let bot = slack::get_bot_id().await?;
+
     let mut users = get_channel_users(&channel.channel_id)?;
+
+    users = users
+        .into_iter()
+        .filter(|u| u != &bot.bot_id && u != &bot.user_id)
+        .collect();
 
     // Shuffle people
     users.shuffle(&mut thread_rng());
