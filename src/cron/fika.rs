@@ -28,7 +28,7 @@ pub async fn start() -> anyhow::Result<()> {
 
         sleep(diff.to_std()?).await;
 
-        if let Err(e) = algos::fika::matchmake() {
+        if let Err(e) = algos::fika::matchmake().await {
             error!("Error on matchmaking: {}", e);
         };
 

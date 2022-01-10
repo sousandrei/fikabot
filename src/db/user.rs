@@ -1,10 +1,6 @@
-use mongodb::{
-    bson::{self, doc},
-    options::UpdateOptions,
-};
 use serde::{Deserialize, Serialize};
 
-use crate::db::get_db;
+use crate::db::{get_values, write_values, Response};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
 pub struct User {
@@ -13,50 +9,50 @@ pub struct User {
     pub song: String,
 }
 
+const SHEET: &str = "users";
+
 impl User {
-    pub fn save(&self) -> anyhow::Result<()> {
-        let db = get_db()?;
+    pub async fn save(&self) -> anyhow::Result<()> {
+        let mut res: Response = get_values(SHEET).await?;
 
-        let users = db.collection::<User>("users");
+        res.values
+            .push(vec![self.user_id.clone(), self.user_name.clone()]);
 
-        let options = UpdateOptions::builder().upsert(true).build();
-
-        users.update_one(
-            doc! { "user_id": self.user_id.clone() },
-            doc! { "$set": bson::to_document(self)? },
-            options,
-        )?;
+        write_values(SHEET, &res).await?;
 
         Ok(())
     }
 
-    pub fn _delete(user: &str) -> anyhow::Result<()> {
-        let db = get_db()?;
+    pub async fn _delete(user: &str) -> anyhow::Result<()> {
+        let mut res: Response = get_values(SHEET).await?;
 
-        let users = db.collection::<User>("users");
-
-        // TODO: filter error for channel not there
-        users.delete_one(doc! { "user_id": user }, None)?;
-
-        Ok(())
-    }
-
-    pub fn list() -> anyhow::Result<Vec<User>> {
-        let db = get_db()?;
-
-        let users = db.collection::<User>("users");
-
-        let result = users
-            .find(None, None)?
-            .filter_map(|channel| {
-                match channel {
-                    Ok(c) => Some(c),
-                    // TODO: proper log errors
-                    Err(_) => None,
-                }
+        res.values = res
+            .values
+            .into_iter()
+            .map(|v| match v.contains(&user.to_owned()) {
+                true => vec![String::new(); 3],
+                false => v,
             })
-            .collect::<Vec<User>>();
+            .collect();
 
-        Ok(result)
+        write_values(SHEET, &res).await?;
+
+        Ok(())
+    }
+
+    pub async fn list() -> anyhow::Result<Vec<User>> {
+        let res: Response = get_values(SHEET).await?;
+
+        let us = res
+            .values
+            .into_iter()
+            .map(|c| User {
+                user_id: c[0].clone(),
+                user_name: c[1].clone(),
+                song: c[2].clone(),
+            })
+            .collect();
+
+        Ok(us)
     }
 }

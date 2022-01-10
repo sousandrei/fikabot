@@ -7,8 +7,8 @@ use crate::{
     slack::{self},
 };
 
-pub fn matchmake() -> anyhow::Result<()> {
-    let mut users = User::list()?;
+pub async fn matchmake() -> anyhow::Result<()> {
+    let mut users = User::list().await?;
 
     // Shuffle people
     users.shuffle(&mut thread_rng());
