@@ -16,23 +16,32 @@ First you are going to need a Slack application. FikaBot needs the following per
 - channels:read
 ```
 
-On top of that, you'll need to create two slash commands, all pointing to a `/commands` url
+On top of that, you'll need to create a couple of slash commands, all pointing to a `/commands` url
 
 ```
 /fika_start
 /fika_stop
 ```
 
-The application needs 2 environment variables to function!
+The application needs a couple of environment variables to function
 
 ```sh
 SLACK_TOKEN='xoxb-......'
-MONGO_URL='mongodb://127.0.0.1'
+SLACK_SIGNING_SECRET='...'
+SHEETS_ID='123123123'
+ACCOUNT_EMAIL='some-account@project.iam.gserviceaccount.com'
+CREDENTIALS='...'
 ```
 
 `SLACK_TOKEN` Is the bot token of your slack application, denotet by starting with `xoxb`
 
-`MONGO_URL` is the mongo connection string for the bot to store it's data
+`SLACK_SIGNING_SECRET` is the secret provided by slack to sign their own requests, we need this since the endpoint needs to be publicly exposed
+
+`SHEETS_ID` is the Id of you Google Sheets file, our "database"
+
+`ACCOUNT_EMAIL` is the email for your service account on GCP to use to authenticate to the Google Sheets API
+
+`CREDENTIALS` is the credentials file for said account
 
 Provide the application with those as enviroment variables and you are good to go!
 
