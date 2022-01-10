@@ -98,3 +98,22 @@ pub fn verify_slack(expt_sign: &str, ts: &str, body: &str) -> Result<(), StatusC
 
     Ok(())
 }
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
+pub struct Bot {
+    pub bot_id: String,
+    pub user_id: String,
+}
+
+pub async fn get_bot_id() -> anyhow::Result<Bot> {
+    let token = env::var("SLACK_TOKEN").expect("SLACK_TOKEN not set");
+
+    let result = reqwest::Client::new()
+        .post("https://slack.com/api/auth.test")
+        .bearer_auth(token.clone())
+        .send()
+        .await?;
+
+    let bot: Bot = result.json().await?;
+    Ok(bot)
+}
