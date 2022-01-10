@@ -13,7 +13,11 @@ async fn main() -> anyhow::Result<()> {
         env::set_var("RUST_LOG", "info");
     }
 
-    tracing_subscriber::fmt::init();
+    if env::var_os("ENV").is_none() || env::var_os("ENV").unwrap() != "prod" {
+        tracing_subscriber::fmt().init();
+    } else {
+        tracing_subscriber::fmt().json().init();
+    }
 
     http::start().await?;
 

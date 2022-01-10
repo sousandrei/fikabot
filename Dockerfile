@@ -14,6 +14,7 @@ RUN cargo build --release
 
 FROM gcr.io/distroless/cc
 
+ENV ENV ""
 ENV SLACK_TOKEN ""
 ENV PORT 8080
 ENV SLACK_SIGNING_SECRET ""
