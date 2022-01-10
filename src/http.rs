@@ -38,6 +38,10 @@ pub async fn start() -> anyhow::Result<()> {
 }
 
 async fn ping(_: Request<()>) -> tide::Result {
+    let a = slack::get_bot_id().await?;
+
+    println!("{:#?}", a);
+
     Ok("pong!".into())
 }
 
@@ -108,7 +112,7 @@ async fn now_command(body: SlackCommandBody) -> tide::Result {
         channel_name,
     };
 
-    fika::matchmake_channel(&channel)?;
+    fika::matchmake_channel(&channel).await?;
 
     Ok("Fika started!".into())
 }
