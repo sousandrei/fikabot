@@ -3,7 +3,7 @@ use std::env;
 use tide::{log::error, Request, Response, StatusCode};
 
 use crate::{
-    algos::fika,
+    algos::{fika, song},
     db::{channel::Channel, user::User},
     slack,
 };
@@ -23,6 +23,7 @@ pub async fn start() -> anyhow::Result<()> {
 
     app.at("/commands").post(parse_commands);
     app.at("/start_fika").post(start_fika);
+    app.at("/start_song").post(start_song);
     app.at("/ping").get(ping);
 
     // TODO: health
@@ -40,13 +41,30 @@ async fn ping(_: Request<()>) -> tide::Result {
     Ok("pong!".into())
 }
 
-async fn start_fika(req: Request<()>) -> tide::Result {
+fn validate_webhook(req: Request<()>) -> Result<(), Response> {
     let token = env::var("WEBHOOK_TOKEN").expect("WEBHOOK_TOKEN not present on environment");
 
     let header_token = req.header("x-token");
 
     if header_token.is_none() || *header_token.unwrap() != token {
-        return Ok(Response::new(StatusCode::Unauthorized));
+        return Err(Response::new(StatusCode::Unauthorized));
+    }
+
+    Ok(())
+}
+
+async fn start_song(req: Request<()>) -> tide::Result {
+    if let Err(e) = validate_webhook(req) {
+        return Ok(e);
+    }
+
+    song::matchmake().await?;
+    Ok(Response::new(StatusCode::Ok))
+}
+
+async fn start_fika(req: Request<()>) -> tide::Result {
+    if let Err(e) = validate_webhook(req) {
+        return Ok(e);
     }
 
     fika::matchmake().await?;
