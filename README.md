@@ -30,6 +30,7 @@ SLACK_TOKEN='xoxb-......'
 SLACK_SIGNING_SECRET='...'
 SHEETS_ID='123123123'
 ACCOUNT_EMAIL='some-account@project.iam.gserviceaccount.com'
+WEBHOOK_TOKEN='something-from-your-head'
 CREDENTIALS='...'
 ```
 
@@ -39,19 +40,20 @@ CREDENTIALS='...'
 
 `SHEETS_ID` is the Id of you Google Sheets file, our "database"
 
+`WEBHOOK_TOKEN` is a token for the fika to be started remotelly.
+
 `ACCOUNT_EMAIL` is the email for your service account on GCP to use to authenticate to the Google Sheets API
 
 `CREDENTIALS` is the credentials file for said account
 
 Provide the application with those as enviroment variables and you are good to go!
 
-## Building
+## Running
 
-No secret here
+To run the bot, it is recommended to setup a cron job/cloud scheduler to call the `/start_fika` endpoint.
+This allow to run this bot at extreme low costs in something like Google Cloud Run with Google Cloud Scheduler calling it.
 
-```bash
-cargo build --release
-```
+The image is build in a distroless manner, further minimizing size and complexity and can be easily extended.
 
 ## Contributing
 
