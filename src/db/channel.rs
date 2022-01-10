@@ -17,6 +17,8 @@ impl Channel {
         res.values
             .push(vec![self.channel_id.clone(), self.channel_name.clone()]);
 
+        res.values.dedup();
+
         write_values(SHEET, &res).await?;
 
         Ok(())
