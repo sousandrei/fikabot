@@ -28,7 +28,7 @@ pub async fn start() -> anyhow::Result<()> {
 
         sleep(diff.to_std()?).await;
 
-        if let Err(e) = algos::song::matchmake() {
+        if let Err(e) = algos::song::matchmake().await {
             error!("Error on matchmaking: {}", e);
         };
 

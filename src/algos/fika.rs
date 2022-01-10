@@ -1,18 +1,20 @@
 use reusable_fmt::{fmt, fmt_reuse};
 
 use rand::{prelude::SliceRandom, thread_rng};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
     db::channel::Channel,
     slack::{self, get_channel_users},
 };
 
-pub fn matchmake() -> anyhow::Result<()> {
-    let channels = Channel::list()?;
+pub async fn matchmake() -> anyhow::Result<()> {
+    let channels = Channel::list().await?;
 
     for channel in channels {
-        matchmake_channel(&channel)?;
+        if let Err(e) = matchmake_channel(&channel) {
+            error!("Error processing channel {:?}: {}", &channel, e);
+        }
     }
 
     Ok(())

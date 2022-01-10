@@ -12,26 +12,15 @@ RUN rm -rf ./target/release/.fingerprint/fikabot*
 ADD src src
 RUN cargo build --release 
 
-FROM rust
+FROM gcr.io/distroless/cc
 
 ENV SLACK_TOKEN ""
-ENV MONGO_URL ""
 ENV PORT 8080
-
-RUN apt update && \
-    apt upgrade -y && \
-    apt install -y libssl-dev
+ENV SLACK_SIGNING_SECRET ""
+ENV ACCOUNT_EMAIL ""
+ENV CREDENTIALS ""
 
 WORKDIR /opt/
-
-# Add Tini
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-
 COPY --from=builder /opt/fika/target/release/fikabot /opt/fikabot
-
-RUN chmod +x /opt/fikabot
 
 CMD [ "/opt/fikabot" ]
