@@ -19,6 +19,7 @@ ENV PORT 8080
 ENV SLACK_SIGNING_SECRET ""
 ENV ACCOUNT_EMAIL ""
 ENV CREDENTIALS ""
+ENV WEBHOOK_TOKEN ""
 
 WORKDIR /opt/
 COPY --from=builder /opt/fika/target/release/fikabot /opt/fikabot
