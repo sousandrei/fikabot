@@ -18,6 +18,8 @@ impl User {
         res.values
             .push(vec![self.user_id.clone(), self.user_name.clone()]);
 
+        res.values.dedup();
+
         write_values(SHEET, &res).await?;
 
         Ok(())
