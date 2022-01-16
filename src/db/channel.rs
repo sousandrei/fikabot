@@ -11,21 +11,21 @@ pub struct Channel {
 const SHEET: &str = "channels";
 
 impl Channel {
-    pub async fn save(&self) -> anyhow::Result<()> {
-        let mut res: Response = get_values(SHEET).await?;
+    pub async fn save(&self, config: &crate::Config) -> anyhow::Result<()> {
+        let mut res: Response = get_values(config, SHEET).await?;
 
         res.values
             .push(vec![self.channel_id.clone(), self.channel_name.clone()]);
 
         res.values.dedup();
 
-        write_values(SHEET, &res).await?;
+        write_values(config, SHEET, &res).await?;
 
         Ok(())
     }
 
-    pub async fn delete(channel: &str) -> anyhow::Result<()> {
-        let mut res: Response = get_values(SHEET).await?;
+    pub async fn delete(config: &crate::Config, channel: &str) -> anyhow::Result<()> {
+        let mut res: Response = get_values(config, SHEET).await?;
 
         res.values = res
             .values
@@ -36,13 +36,13 @@ impl Channel {
             })
             .collect();
 
-        write_values(SHEET, &res).await?;
+        write_values(config, SHEET, &res).await?;
 
         Ok(())
     }
 
-    pub async fn list() -> anyhow::Result<Vec<Channel>> {
-        let res: Response = get_values(SHEET).await?;
+    pub async fn list(config: &crate::Config) -> anyhow::Result<Vec<Channel>> {
+        let res: Response = get_values(config, SHEET).await?;
 
         let cs = res
             .values

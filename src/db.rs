@@ -7,7 +7,7 @@ use goauth::{
 };
 use serde::{Deserialize, Serialize};
 use smpl_jwt::Jwt;
-use std::{env, str::FromStr};
+use std::str::FromStr;
 use time::Duration;
 
 pub mod channel;
@@ -20,14 +20,10 @@ pub struct Response {
 
 const TOKEN_URL: &str = "https://www.googleapis.com/oauth2/v4/token";
 
-async fn get_token() -> anyhow::Result<Token> {
-    let credentials = env::var("CREDENTIALS").expect("CREDENTIALS not present on environment");
-    let account_email =
-        env::var("ACCOUNT_EMAIL").expect("ACCOUNT_EMAIL not present on environment");
-
-    let credentials = Credentials::from_str(&credentials).unwrap();
+async fn get_token(config: &crate::Config) -> anyhow::Result<Token> {
+    let credentials = Credentials::from_str(&config.credentials).unwrap();
     let claims = JwtClaims::new(
-        account_email,
+        config.account_email.clone(),
         &Scope::SpreadSheets,
         TOKEN_URL.to_owned(),
         None,
@@ -43,14 +39,12 @@ async fn get_token() -> anyhow::Result<Token> {
     }
 }
 
-pub async fn get_values(sheet: &str) -> anyhow::Result<Response> {
-    let sheets_id = env::var("SHEETS_ID").expect("SHEETS_ID not present on environment");
-
-    let token = get_token().await?;
+pub async fn get_values(config: &crate::Config, sheet: &str) -> anyhow::Result<Response> {
+    let token = get_token(config).await?;
 
     let url = format!(
         "https://sheets.googleapis.com/v4/spreadsheets/{}/values/{}",
-        sheets_id, sheet
+        config.sheets_id, sheet
     );
 
     let result = reqwest::Client::new()
@@ -63,14 +57,16 @@ pub async fn get_values(sheet: &str) -> anyhow::Result<Response> {
     Ok(values)
 }
 
-pub async fn write_values(sheet: &str, values: &Response) -> anyhow::Result<()> {
-    let sheets_id = env::var("SHEETS_ID").expect("SHEETS_ID not present on environment");
-
-    let token = get_token().await?;
+pub async fn write_values(
+    config: &crate::Config,
+    sheet: &str,
+    values: &Response,
+) -> anyhow::Result<()> {
+    let token = get_token(config).await?;
 
     let url = format!(
         "https://sheets.googleapis.com/v4/spreadsheets/{}/values/{}?valueInputOption=USER_ENTERED",
-        sheets_id, sheet
+        config.sheets_id, sheet
     );
 
     reqwest::Client::new()

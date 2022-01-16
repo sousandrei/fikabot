@@ -12,21 +12,21 @@ pub struct User {
 const SHEET: &str = "users";
 
 impl User {
-    pub async fn save(&self) -> anyhow::Result<()> {
-        let mut res: Response = get_values(SHEET).await?;
+    pub async fn save(&self, config: &crate::Config) -> anyhow::Result<()> {
+        let mut res: Response = get_values(config, SHEET).await?;
 
         res.values
             .push(vec![self.user_id.clone(), self.user_name.clone()]);
 
         res.values.dedup();
 
-        write_values(SHEET, &res).await?;
+        write_values(config, SHEET, &res).await?;
 
         Ok(())
     }
 
-    pub async fn _delete(user: &str) -> anyhow::Result<()> {
-        let mut res: Response = get_values(SHEET).await?;
+    pub async fn _delete(config: &crate::Config, user: &str) -> anyhow::Result<()> {
+        let mut res: Response = get_values(config, SHEET).await?;
 
         res.values = res
             .values
@@ -37,13 +37,13 @@ impl User {
             })
             .collect();
 
-        write_values(SHEET, &res).await?;
+        write_values(config, SHEET, &res).await?;
 
         Ok(())
     }
 
-    pub async fn list() -> anyhow::Result<Vec<User>> {
-        let res: Response = get_values(SHEET).await?;
+    pub async fn list(config: &crate::Config) -> anyhow::Result<Vec<User>> {
+        let res: Response = get_values(config, SHEET).await?;
 
         let us = res
             .values

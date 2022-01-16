@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::env;
 use tide::{log::error, Request, Response, StatusCode};
 
 use crate::{
     algos::{fika, song},
     db::{channel::Channel, user::User},
-    slack,
+    slack, Config,
 };
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
@@ -18,8 +17,8 @@ struct SlackCommandBody {
     text: String,
 }
 
-pub async fn start() -> anyhow::Result<()> {
-    let mut app = tide::Server::new();
+pub async fn start(config: &Config) -> anyhow::Result<()> {
+    let mut app = tide::with_state(config.clone());
 
     app.at("/commands").post(parse_commands);
     app.at("/start_fika").post(start_fika);
@@ -30,73 +29,79 @@ pub async fn start() -> anyhow::Result<()> {
     // let metrics = warp::path!("metrics").map(|| StatusCode::OK);
     // let healthcheck = warp::path!("healthchecks").map(|| StatusCode::OK);
 
-    let port = env::var("PORT").unwrap_or_else(|_| "8080".into());
+    let port = config.port.clone().unwrap_or("8080".into());
 
-    app.listen(format!("0.0.0.0:{}", port)).await?;
+    app.listen(format!("0.0.0.0:{port}")).await?;
 
     Ok(())
 }
 
-async fn ping(_: Request<()>) -> tide::Result {
-    let a = slack::get_bot_id().await?;
-
-    println!("{:#?}", a);
-
+async fn ping(_: Request<Config>) -> tide::Result {
     Ok("pong!".into())
 }
 
-fn validate_webhook(req: Request<()>) -> Result<(), Response> {
-    let token = env::var("WEBHOOK_TOKEN").expect("WEBHOOK_TOKEN not present on environment");
+fn validate_webhook(req: Request<Config>) -> Result<(), Response> {
+    let config = req.state();
 
     let header_token = req.header("x-token");
 
-    if header_token.is_none() || *header_token.unwrap() != token {
+    if header_token.is_none() || *header_token.unwrap() != config.webhook_token {
         return Err(Response::new(StatusCode::Unauthorized));
     }
 
     Ok(())
 }
 
-async fn start_song(req: Request<()>) -> tide::Result {
+async fn start_song(req: Request<Config>) -> tide::Result {
+    let config = req.state().clone();
+
     if let Err(e) = validate_webhook(req) {
         return Ok(e);
     }
 
-    song::matchmake().await?;
+    song::matchmake(&config).await?;
     Ok(Response::new(StatusCode::Ok))
 }
 
-async fn start_fika(req: Request<()>) -> tide::Result {
+async fn start_fika(req: Request<Config>) -> tide::Result {
+    let config = req.state().clone();
+
     if let Err(e) = validate_webhook(req) {
         return Ok(e);
     }
 
-    fika::matchmake().await?;
+    fika::matchmake(&config).await?;
     Ok(Response::new(StatusCode::Ok))
 }
 
-async fn parse_commands(mut req: Request<()>) -> tide::Result {
+async fn parse_commands(mut req: Request<Config>) -> tide::Result {
     let timestamp = req.header("X-Slack-Request-Timestamp").cloned().unwrap();
     let signature = req.header("X-Slack-Signature").cloned().unwrap();
 
     let body = req.body_string().await?;
+    let config = req.state();
 
-    if let Err(e) = slack::verify_slack(signature.as_str(), timestamp.as_str(), &body) {
+    if let Err(e) = slack::verify_slack(
+        &config.slack_signing_secret,
+        signature.as_str(),
+        timestamp.as_str(),
+        &body,
+    ) {
         return Ok(Response::new(e));
     }
 
     let body: SlackCommandBody = serde_qs::from_str(&body)?;
 
     match body.command.as_str() {
-        "/fika_now" => now_command(body).await,
-        "/fika_start" => start_command(body).await,
-        "/fika_stop" => stop_command(body).await,
-        "/fika_song" => song_command(body).await,
+        "/fika_now" => now_command(&config.slack_token, body).await,
+        "/fika_start" => start_command(config, body).await,
+        "/fika_stop" => stop_command(config, body).await,
+        "/fika_song" => song_command(config, body).await,
         _ => Ok("Command not found".into()),
     }
 }
 
-async fn now_command(body: SlackCommandBody) -> tide::Result {
+async fn now_command(token: &str, body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody {
         channel_id,
         channel_name,
@@ -112,12 +117,12 @@ async fn now_command(body: SlackCommandBody) -> tide::Result {
         channel_name,
     };
 
-    fika::matchmake_channel(&channel).await?;
+    fika::matchmake_channel(token, &channel).await?;
 
     Ok("Fika started!".into())
 }
 
-async fn start_command(body: SlackCommandBody) -> tide::Result {
+async fn start_command(config: &crate::Config, body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody {
         channel_id,
         channel_name,
@@ -137,7 +142,7 @@ async fn start_command(body: SlackCommandBody) -> tide::Result {
         channel_name,
     };
 
-    let message = match channel.save().await {
+    let message = match channel.save(config).await {
         Ok(_) => "You just started the Fika roullete on this channel! :doughnut:",
         Err(e) => {
             error!("Error adding channel: {}", e);
@@ -148,10 +153,10 @@ async fn start_command(body: SlackCommandBody) -> tide::Result {
     Ok(message.into())
 }
 
-async fn stop_command(body: SlackCommandBody) -> tide::Result {
+async fn stop_command(config: &crate::Config, body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody { channel_id, .. } = body;
 
-    let message = match Channel::delete(&channel_id).await {
+    let message = match Channel::delete(config, &channel_id).await {
         Ok(_) => "Sad to see you stop :cry:",
         Err(e) => {
             error!("Error deleting user: {}", e);
@@ -162,7 +167,7 @@ async fn stop_command(body: SlackCommandBody) -> tide::Result {
     Ok(message.into())
 }
 
-async fn song_command(body: SlackCommandBody) -> tide::Result {
+async fn song_command(config: &crate::Config, body: SlackCommandBody) -> tide::Result {
     let SlackCommandBody {
         user_id,
         user_name,
@@ -181,7 +186,7 @@ async fn song_command(body: SlackCommandBody) -> tide::Result {
         song,
     };
 
-    let message = match user.save().await {
+    let message = match user.save(config).await {
         Ok(_) => "Your song is saved for this week! :partyparrot:",
         Err(e) => {
             error!("Error saving user: {}", e);

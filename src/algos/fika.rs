@@ -8,11 +8,11 @@ use crate::{
     slack::{self, get_channel_users},
 };
 
-pub async fn matchmake() -> anyhow::Result<()> {
-    let channels = Channel::list().await?;
+pub async fn matchmake(config: &crate::Config) -> anyhow::Result<()> {
+    let channels = Channel::list(config).await?;
 
     for channel in channels {
-        if let Err(e) = matchmake_channel(&channel).await {
+        if let Err(e) = matchmake_channel(&config.slack_token, &channel).await {
             error!("Error processing channel {:?}: {}", &channel, e);
         }
     }
@@ -20,12 +20,12 @@ pub async fn matchmake() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn matchmake_channel(channel: &Channel) -> anyhow::Result<()> {
+pub async fn matchmake_channel(token: &str, channel: &Channel) -> anyhow::Result<()> {
     info!("processing channel: {}", channel.channel_name);
 
-    let bot = slack::get_bot_id().await?;
+    let bot = slack::get_bot_id(token).await?;
 
-    let mut users = get_channel_users(&channel.channel_id).await?;
+    let mut users = get_channel_users(token, &channel.channel_id).await?;
 
     users = users
         .into_iter()
@@ -52,13 +52,13 @@ pub async fn matchmake_channel(channel: &Channel) -> anyhow::Result<()> {
     // Just one pair, handle naively
     if pairs.len() < 2 {
         info!("one pair");
-        message_pair(channel, pairs[0]).await?;
+        message_pair(token, channel, pairs[0]).await?;
         return Ok(());
     }
 
     // Send message to pairs
     for pair in pairs.iter().take(pairs.len() - 2) {
-        message_pair(channel, pair).await?;
+        message_pair(token, channel, pair).await?;
     }
 
     // If we have a trio, last pair is 1 person
@@ -67,6 +67,7 @@ pub async fn matchmake_channel(channel: &Channel) -> anyhow::Result<()> {
 
         // Uses messages a trio
         message_trio(
+            token,
             channel,
             &pairs[pairs.len() - 1][0],
             &pairs[pairs.len() - 2][0],
@@ -77,10 +78,10 @@ pub async fn matchmake_channel(channel: &Channel) -> anyhow::Result<()> {
         info!("two last pairs");
 
         // second to last pair
-        message_pair(channel, pairs[pairs.len() - 2]).await?;
+        message_pair(token, channel, pairs[pairs.len() - 2]).await?;
 
         // Last pair
-        message_pair(channel, pairs[pairs.len() - 1]).await?;
+        message_pair(token, channel, pairs[pairs.len() - 1]).await?;
     }
 
     Ok(())
@@ -92,24 +93,42 @@ fmt_reuse! {
     FIKA_TRIO = "This week your fika \"pair\"(s) for channel `{}` are <@{}> and <@{}>!\nThis time you got an extra buddy! ;)";
 }
 
-pub async fn message_pair(channel: &Channel, pair: &[String]) -> anyhow::Result<()> {
+pub async fn message_pair(token: &str, channel: &Channel, pair: &[String]) -> anyhow::Result<()> {
     if let [user1, user2] = pair {
-        slack::send_message(user1, fmt!(FIKA_PAIR, channel.channel_name, user2)).await?;
-        slack::send_message(user2, fmt!(FIKA_PAIR, channel.channel_name, user1)).await?;
+        slack::send_message(token, user1, fmt!(FIKA_PAIR, channel.channel_name, user2)).await?;
+        slack::send_message(token, user2, fmt!(FIKA_PAIR, channel.channel_name, user1)).await?;
     }
 
     Ok(())
 }
 
 pub async fn message_trio(
+    token: &str,
     channel: &Channel,
     user1: &str,
     user2: &str,
     user3: &str,
 ) -> anyhow::Result<()> {
-    slack::send_message(user1, fmt!(FIKA_TRIO, channel.channel_name, user2, user3)).await?;
-    slack::send_message(user2, fmt!(FIKA_TRIO, channel.channel_name, user1, user3)).await?;
-    slack::send_message(user3, fmt!(FIKA_TRIO, channel.channel_name, user1, user2)).await?;
+    slack::send_message(
+        token,
+        user1,
+        fmt!(FIKA_TRIO, channel.channel_name, user2, user3),
+    )
+    .await?;
+
+    slack::send_message(
+        token,
+        user2,
+        fmt!(FIKA_TRIO, channel.channel_name, user1, user3),
+    )
+    .await?;
+
+    slack::send_message(
+        token,
+        user3,
+        fmt!(FIKA_TRIO, channel.channel_name, user1, user2),
+    )
+    .await?;
 
     Ok(())
 }
