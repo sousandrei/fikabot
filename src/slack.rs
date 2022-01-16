@@ -1,7 +1,6 @@
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use std::env;
 use tide::StatusCode;
 use tracing::info;
 
@@ -11,9 +10,7 @@ struct SlackMessage {
     text: String,
 }
 
-pub async fn send_message(user: &str, text: String) -> anyhow::Result<()> {
-    let token = env::var("SLACK_TOKEN").expect("SLACK_TOKEN not set");
-
+pub async fn send_message(token: &str, user: &str, text: String) -> anyhow::Result<()> {
     let msg = SlackMessage {
         channel: format!("@{}", user),
         text,
@@ -35,9 +32,7 @@ struct ConversationsMembersResponse {
     next_cursor: Option<String>,
 }
 
-pub async fn get_channel_users(channel_id: &str) -> anyhow::Result<Vec<String>> {
-    let token = env::var("SLACK_TOKEN").expect("SLACK_TOKEN not set");
-
+pub async fn get_channel_users(token: &str, channel_id: &str) -> anyhow::Result<Vec<String>> {
     let mut users = Vec::new();
     let mut cursor = None;
 
@@ -75,10 +70,12 @@ pub async fn get_channel_users(channel_id: &str) -> anyhow::Result<Vec<String>> 
 // Create alias for HMAC-SHA256
 type HmacSha256 = Hmac<Sha256>;
 
-pub fn verify_slack(expt_sign: &str, ts: &str, body: &str) -> Result<(), StatusCode> {
-    let signing_secret =
-        env::var("SLACK_SIGNING_SECRET").expect("SLACK_SIGNING_SECRET not present");
-
+pub fn verify_slack(
+    signing_secret: &str,
+    expt_sign: &str,
+    ts: &str,
+    body: &str,
+) -> Result<(), StatusCode> {
     // To verify the message:
     let mut mac = match HmacSha256::new_from_slice(signing_secret.as_bytes()) {
         Ok(mac) => mac,
@@ -107,9 +104,7 @@ pub struct Bot {
     pub user_id: String,
 }
 
-pub async fn get_bot_id() -> anyhow::Result<Bot> {
-    let token = env::var("SLACK_TOKEN").expect("SLACK_TOKEN not set");
-
+pub async fn get_bot_id(token: &str) -> anyhow::Result<Bot> {
     let result = reqwest::Client::new()
         .post("https://slack.com/api/auth.test")
         .bearer_auth(token.clone())
