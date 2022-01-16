@@ -24,6 +24,6 @@ sha2 = "0.10.0"
 smpl_jwt = "0.6.1"
 thiserror = "1.0.30"
 tide = "0.16.0"
-time = "0.2"
+time = "0.3"
 tracing = "0.1.29"
 tracing-subscriber = { version = "0.3.5", features = ["std", "fmt", "json"] }
