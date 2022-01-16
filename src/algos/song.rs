@@ -1,5 +1,4 @@
 use rand::{prelude::SliceRandom, thread_rng};
-use reusable_fmt::{fmt, fmt_reuse};
 use tracing::info;
 
 use crate::{
@@ -67,26 +66,30 @@ pub async fn matchmake(config: &crate::Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-// TODO: come up with a couple different message
-fmt_reuse! {
-    SONG = "song from is<@{}>!";
-    SONG_LAST = "song from is<@{}>!, your song did not reach anyone,
-     we'll try again next week or you can alwyas submit a new one :D";
-}
+// TODO: come up with a couple different messages
 
 async fn message_pair(token: &str, pair: &[User]) -> anyhow::Result<()> {
+    let msg = |user: &str| format!("song from is<@{user}>!");
+
     if let [user1, user2] = pair {
-        slack::send_message(token, &user1.user_id, fmt!(SONG, user1.user_id)).await?;
-        slack::send_message(token, &user2.user_id, fmt!(SONG, user2.user_id)).await?;
+        slack::send_message(token, &user1.user_id, msg(&user1.user_id)).await?;
+        slack::send_message(token, &user2.user_id, msg(&user2.user_id)).await?;
     }
 
     Ok(())
 }
 
 async fn message_trio(token: &str, user1: &User, user2: &User, user3: &User) -> anyhow::Result<()> {
-    slack::send_message(token, &user1.user_id, fmt!(SONG, user2.user_id)).await?;
-    slack::send_message(token, &user2.user_id, fmt!(SONG, user1.user_id)).await?;
-    slack::send_message(token, &user3.user_id, fmt!(SONG, user2.user_id)).await?;
+    let msg = |user: &str| {
+        format!(
+            "song from is<@{user}>!, your song did not reach anyone,
+    we'll try again next week or you can alwyas submit a new one :D"
+        )
+    };
+
+    slack::send_message(token, &user1.user_id, msg(&user2.user_id)).await?;
+    slack::send_message(token, &user2.user_id, msg(&user1.user_id)).await?;
+    slack::send_message(token, &user3.user_id, msg(&user2.user_id)).await?;
 
     Ok(())
 }
