@@ -45,7 +45,7 @@ pub async fn get_channel_users(token: &str, channel_id: &str) -> anyhow::Result<
 
         let result = reqwest::Client::new()
             .post("https://slack.com/api/conversations.members")
-            .bearer_auth(token.clone())
+            .bearer_auth(token)
             .form(&params)
             .send()
             .await?;
@@ -107,7 +107,7 @@ pub struct Bot {
 pub async fn get_bot_id(token: &str) -> anyhow::Result<Bot> {
     let result = reqwest::Client::new()
         .post("https://slack.com/api/auth.test")
-        .bearer_auth(token.clone())
+        .bearer_auth(token)
         .send()
         .await?;
 

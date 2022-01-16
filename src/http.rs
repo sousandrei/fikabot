@@ -29,7 +29,7 @@ pub async fn start(config: &Config) -> anyhow::Result<()> {
     // let metrics = warp::path!("metrics").map(|| StatusCode::OK);
     // let healthcheck = warp::path!("healthchecks").map(|| StatusCode::OK);
 
-    let port = config.port.clone().unwrap_or("8080".into());
+    let port = config.port.clone().unwrap_or_else(|| "8080".into());
 
     app.listen(format!("0.0.0.0:{port}")).await?;
 
