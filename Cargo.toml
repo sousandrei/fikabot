@@ -6,7 +6,7 @@ version = "0.1.0"
 
 
 [dependencies]
-anyhow = "1.0.52"
+anyhow = "1.0.53"
 async-std = { version = "1.10.0", features = ["tokio1", "attributes"] }
 chrono = "0.4.19"
 cron = "0.9.0"
