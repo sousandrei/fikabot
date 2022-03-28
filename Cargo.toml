@@ -9,7 +9,7 @@ version = "0.1.0"
 anyhow = "1.0.56"
 async-std = { version = "1.10.0", features = ["tokio1", "attributes"] }
 chrono = "0.4.19"
-cron = "0.9.0"
+cron = "0.10.0"
 envy = "0.4.2"
 futures-util = "0.3.21"
 goauth = "0.11.1"
