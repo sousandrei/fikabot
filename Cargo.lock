@@ -696,7 +696,7 @@ dependencies = [
  "serde_json",
  "serde_qs 0.9.1",
  "sha2 0.10.2",
- "smpl_jwt",
+ "smpl_jwt 0.6.1",
  "thiserror",
  "tide",
  "time 0.3.9",
@@ -896,9 +896,9 @@ dependencies = [
 
 [[package]]
 name = "goauth"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38f3d68c8343245dc047982651b5afb8bd659c9959ed72efe5a73bf22684e5fd"
+checksum = "5a139506b3f65acaee2a2b4cb5bd51b26e0c6945d280955a9c25c026e1849537"
 dependencies = [
  "arc-swap",
  "futures",
@@ -908,7 +908,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "simpl",
- "smpl_jwt",
+ "smpl_jwt 0.7.0",
  "time 0.3.9",
  "tokio",
 ]
@@ -1835,6 +1835,22 @@ dependencies = [
  "serde_json",
  "simpl",
  "time 0.2.27",
+]
+
+[[package]]
+name = "smpl_jwt"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36f0293a6547a8463502e0f4d68dc35c79a6978e6c3f9e8b874c18bb7abae9b6"
+dependencies = [
+ "base64 0.13.0",
+ "log",
+ "openssl",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "simpl",
+ "time 0.3.9",
 ]
 
 [[package]]
