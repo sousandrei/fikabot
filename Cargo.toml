@@ -21,7 +21,7 @@ serde = { version = "1.0.137", features = ["derive"] }
 serde_json = "1.0.81"
 serde_qs = "0.9.1"
 sha2 = "0.10.2"
-smpl_jwt = "0.7.0"
+smpl_jwt = "0.7.1"
 thiserror = "1.0.31"
 tide = "0.16.0"
 time = "0.3"
