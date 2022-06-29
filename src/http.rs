@@ -1,5 +1,17 @@
+use std::net::SocketAddr;
+
+use axum::{
+    http::{Request, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
+    routing::{get, post},
+    Extension, Router,
+};
+use hyper::Body;
 use serde::{Deserialize, Serialize};
-use tide::{log::error, Request, Response, StatusCode};
+use tower::ServiceBuilder;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tracing::Level;
 
 use crate::{
     algos::{fika, song},
@@ -18,90 +30,170 @@ struct SlackCommandBody {
 }
 
 pub async fn start(config: &Config) -> anyhow::Result<()> {
-    let mut app = tide::with_state(config.clone());
+    let tracing_layer = TraceLayer::new_for_http()
+        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+        .on_response(DefaultOnResponse::new().level(Level::INFO));
 
-    app.at("/commands").post(parse_commands);
-    app.at("/start_fika").post(start_fika);
-    app.at("/start_song").post(start_song);
-    app.at("/ping").get(ping);
+    let commands_router = Router::new()
+        .route("/commands", post(parse_commands))
+        .layer(
+            ServiceBuilder::new()
+                .layer(Extension(config.clone()))
+                .layer(middleware::from_fn(slack_auth)),
+        );
+
+    let http_router = Router::new()
+        .route("/start_fika", post(start_fika))
+        .route("/start_song", post(start_song))
+        .layer(
+            ServiceBuilder::new()
+                .layer(Extension(config.clone()))
+                .layer(middleware::from_fn(token_auth)),
+        );
+
+    let app = Router::new()
+        .merge(commands_router)
+        .merge(http_router)
+        .route("/ping", get(ping))
+        .layer(tracing_layer);
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.port.unwrap_or(8080)));
+
+    tracing::info!("server started on {}", addr);
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await?;
 
     // TODO: health
     // let metrics = warp::path!("metrics").map(|| StatusCode::OK);
     // let healthcheck = warp::path!("healthchecks").map(|| StatusCode::OK);
 
-    let port = config.port.clone().unwrap_or_else(|| "8080".into());
-
-    app.listen(format!("0.0.0.0:{port}")).await?;
-
     Ok(())
 }
 
-async fn ping(_: Request<Config>) -> tide::Result {
-    Ok("pong!".into())
+async fn ping() -> &'static str {
+    "pong!"
 }
 
-fn validate_webhook(req: Request<Config>) -> Result<(), Response> {
-    let config = req.state();
+async fn token_auth(req: Request<Body>, next: Next<Body>) -> Result<Response, StatusCode> {
+    let (parts, body) = req.into_parts();
 
-    let header_token = req.header("x-token");
+    let config: &Config = parts.extensions.get().ok_or_else(|| {
+        tracing::error!("no config on auth middleware");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let headers = parts.headers.clone();
+
+    let header_token = headers.get("x-token");
+    if header_token.is_none() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
 
     if header_token.is_none() || *header_token.unwrap() != config.webhook_token {
-        return Err(Response::new(StatusCode::Unauthorized));
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
-    Ok(())
+    let req = Request::from_parts(parts, body);
+    Ok(next.run(req).await)
 }
 
-async fn start_song(req: Request<Config>) -> tide::Result {
-    let config = req.state().clone();
+async fn slack_auth(req: Request<Body>, next: Next<Body>) -> Result<Response, StatusCode> {
+    let (parts, body) = req.into_parts();
 
-    if let Err(e) = validate_webhook(req) {
-        return Ok(e);
+    let config: &Config = parts.extensions.get().ok_or_else(|| {
+        tracing::error!("no config on auth middleware");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let headers = parts.headers.clone();
+
+    let timestamp = headers.get("X-Slack-Request-Timestamp");
+    if timestamp.is_none() {
+        tracing::error!("no timestamp on slack auth");
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
-    song::matchmake(&config).await?;
-    Ok(Response::new(StatusCode::Ok))
-}
+    let timestamp = timestamp.unwrap().to_str().map_err(|_| {
+        tracing::error!("timestamp on slack auth is not a string");
+        StatusCode::UNAUTHORIZED
+    })?;
 
-async fn start_fika(req: Request<Config>) -> tide::Result {
-    let config = req.state().clone();
-
-    if let Err(e) = validate_webhook(req) {
-        return Ok(e);
+    let signature = headers.get("X-Slack-Signature");
+    if signature.is_none() {
+        tracing::error!("no signature on slack auth");
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
-    fika::matchmake(&config).await?;
-    Ok(Response::new(StatusCode::Ok))
-}
+    let signature = signature.unwrap().to_str().map_err(|_| {
+        tracing::error!("signature on slack auth is not a string");
+        StatusCode::UNAUTHORIZED
+    })?;
 
-async fn parse_commands(mut req: Request<Config>) -> tide::Result {
-    let timestamp = req.header("X-Slack-Request-Timestamp").cloned().unwrap();
-    let signature = req.header("X-Slack-Signature").cloned().unwrap();
-
-    let body = req.body_string().await?;
-    let config = req.state();
+    let bytes = hyper::body::to_bytes(body).await.unwrap();
+    let body_str = String::from_utf8(bytes.to_vec()).unwrap();
 
     if let Err(e) = slack::verify_slack(
         &config.slack_signing_secret,
-        signature.as_str(),
-        timestamp.as_str(),
-        &body,
+        signature,
+        timestamp,
+        &body_str,
     ) {
-        return Ok(Response::new(e));
+        tracing::error!("Slack auth header error: {}", e);
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
-    let body: SlackCommandBody = serde_qs::from_str(&body)?;
+    let req = Request::from_parts(parts, Body::from(bytes));
+    Ok(next.run(req).await)
+}
 
-    match body.command.as_str() {
-        "/fika_now" => now_command(&config.slack_token, body).await,
-        "/fika_start" => start_command(config, body).await,
-        "/fika_stop" => stop_command(config, body).await,
-        "/fika_song" => song_command(config, body).await,
-        _ => Ok("Command not found".into()),
+async fn start_fika(Extension(config): Extension<Config>) -> impl IntoResponse {
+    if let Err(e) = fika::matchmake(&config).await {
+        tracing::error!("fika error: {}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
+    StatusCode::OK
+}
+
+async fn start_song(Extension(config): Extension<Config>) -> impl IntoResponse {
+    if let Err(e) = song::matchmake(&config).await {
+        tracing::error!("song error: {}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
+    StatusCode::OK
+}
+
+async fn parse_commands(
+    Extension(config): Extension<Config>,
+    mut req: Request<Body>,
+) -> impl IntoResponse {
+    let body = req.body_mut();
+    let bytes = hyper::body::to_bytes(body).await.unwrap();
+
+    let data: SlackCommandBody = serde_qs::from_bytes(&bytes).unwrap();
+
+    match data.command.as_str() {
+        "/fika_now" => now_fika(&config.slack_token, data).await,
+        "/song_now" => now_song(&config).await,
+        "/fika_start" => start_command(&config, data).await,
+        "/fika_stop" => stop_command(&config, data).await,
+        "/fika_song" => song_command(&config, data).await,
+        _ => "Command not found",
     }
 }
 
-async fn now_command(token: &str, body: SlackCommandBody) -> tide::Result {
+async fn now_song(config: &Config) -> &'static str {
+    if let Err(e) = song::matchmake(config).await {
+        tracing::error!("{}", e);
+        return "Error starting song matchmaking";
+    }
+
+    "Song matchmaking started!"
+}
+
+async fn now_fika(token: &str, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody {
         channel_id,
         channel_name,
@@ -109,7 +201,7 @@ async fn now_command(token: &str, body: SlackCommandBody) -> tide::Result {
     } = body;
 
     if channel_name == "general" {
-        return Ok("Fika is not allowed in general :/".into());
+        return "Fika is not allowed in general :/";
     }
 
     let channel = Channel {
@@ -117,12 +209,15 @@ async fn now_command(token: &str, body: SlackCommandBody) -> tide::Result {
         channel_name,
     };
 
-    fika::matchmake_channel(token, &channel).await?;
+    if let Err(e) = fika::matchmake_channel(token, &channel).await {
+        tracing::error!("{:#?}", e);
+        return "Error running matchmaking :/";
+    }
 
-    Ok("Fika started!".into())
+    "Fika started!"
 }
 
-async fn start_command(config: &crate::Config, body: SlackCommandBody) -> tide::Result {
+async fn start_command(config: &Config, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody {
         channel_id,
         channel_name,
@@ -130,11 +225,11 @@ async fn start_command(config: &crate::Config, body: SlackCommandBody) -> tide::
     } = body;
 
     if channel_name == "general" {
-        return Ok("Fika is not allowed in general :/".into());
+        return "Fika is not allowed in general :/";
     }
 
     if channel_name == "directmessage" {
-        return Ok("Fika is only allowed in channels :D".into());
+        return "Fika is only allowed in channels :D";
     }
 
     let channel = Channel {
@@ -142,32 +237,25 @@ async fn start_command(config: &crate::Config, body: SlackCommandBody) -> tide::
         channel_name,
     };
 
-    let message = match channel.save(config).await {
-        Ok(_) => "You just started the Fika roullete on this channel! :doughnut:",
-        Err(e) => {
-            error!("Error adding channel: {}", e);
-            "There was an error trying to start the fika roullete here. Try again soon :thinking_face:"
-        }
-    };
+    if let Err(e) = channel.save(config).await {
+        tracing::error!("Error saving channel: {}", e);
+        return "There was an error trying to start the fika roullete here. Try again soon :thinking_face:";
+    }
 
-    Ok(message.into())
+    "You just started the Fika roullete on this channel! :doughnut:"
 }
 
-async fn stop_command(config: &crate::Config, body: SlackCommandBody) -> tide::Result {
+async fn stop_command(config: &Config, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody { channel_id, .. } = body;
 
-    let message = match Channel::delete(config, &channel_id).await {
-        Ok(_) => "Sad to see you stop :cry:",
-        Err(e) => {
-            error!("Error deleting user: {}", e);
-            "There was an error trying to disable the bot here. Try again soon :thinking_face:"
-        }
-    };
+    if let Err(e) = Channel::delete(config, &channel_id).await {
+        tracing::error!("Error deleting channel: {}", e);
+    }
 
-    Ok(message.into())
+    "Sad to see you stop :cry:"
 }
 
-async fn song_command(config: &crate::Config, body: SlackCommandBody) -> tide::Result {
+async fn song_command(config: &Config, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody {
         user_id,
         user_name,
@@ -177,7 +265,7 @@ async fn song_command(config: &crate::Config, body: SlackCommandBody) -> tide::R
 
     let song = match validate_url(text) {
         Some(url) => url,
-        None => return Ok("This url is not valid :/".into()),
+        None => return "This url is not valid :/",
     };
 
     let user = User {
@@ -186,15 +274,12 @@ async fn song_command(config: &crate::Config, body: SlackCommandBody) -> tide::R
         song,
     };
 
-    let message = match user.save(config).await {
-        Ok(_) => "Your song is saved for this week! :partyparrot:",
-        Err(e) => {
-            error!("Error saving user: {}", e);
-            "There was an error trying to save your song. Try again soon :thinking_face:"
-        }
-    };
+    if let Err(e) = user.save(config).await {
+        tracing::error!("Error saving user: {}", e);
+        return "There was an error trying to save your song. Try again soon :thinking_face:";
+    }
 
-    Ok(message.into())
+    "Your song is saved for this week! :partyparrot:"
 }
 
 const VALID_URLS: [&str; 5] = [
@@ -220,19 +305,49 @@ fn validate_url(url: String) -> Option<String> {
     None
 }
 
-// TODO: Free test cases
-// dbg!(validate_url("https://music.youtube.com/watch?v=pA_v6zYJDAI&feature=share".into()));
-// dbg!(validate_url("https://www.youtube.com/watch?v=AV1mu0rsHxc".into()));
-// dbg!(validate_url("https://youtu.be/AV1mu0rsHxc".into()));
+#[cfg(test)]
+mod tests {
+    use crate::http::validate_url;
 
-// dbg!(validate_url("http://music.youtube.com/watch?v=pA_v6zYJDAI&feature=share".into()));
-// dbg!(validate_url("http://www.youtube.com/watch?v=AV1mu0rsHxc".into()));
-// dbg!(validate_url("http://youtu.be/AV1mu0rsHxc".into()));
-
-// dbg!(validate_url("https://open.spotify.com/track/3BGj9WOKMyl2ZlkK8IoKhq?si=8771121b200647e5".into()));
-
-// dbg!(validate_url("youtu.be/AV1mu0rsHxc".into()));
-// dbg!(validate_url("e/AV1mu0rsHxc".into()));
-// dbg!(validate_url("barracuda".into()));
-// dbg!(validate_url("u.be/AV1mu0rsHxc".into()));
-// dbg!(validate_url("http://a.be/AV1mu0rsHxc".into()));
+    #[test]
+    fn valid_url() {
+        assert_eq!(
+            validate_url("https://music.youtube.com/watch?v=pA_v6zYJDAI&feature=share".into()),
+            Some("music.youtube.com/watch?v=pA_v6zYJDAI&feature=share".into())
+        );
+        assert_eq!(
+            validate_url("https://www.youtube.com/watch?v=AV1mu0rsHxc".into()),
+            Some("youtube.com/watch?v=AV1mu0rsHxc".into())
+        );
+        assert_eq!(
+            validate_url("https://youtu.be/AV1mu0rsHxc".into()),
+            Some("youtu.be/AV1mu0rsHxc".into())
+        );
+        assert_eq!(
+            validate_url("http://music.youtube.com/watch?v=pA_v6zYJDAI&feature=share".into()),
+            Some("music.youtube.com/watch?v=pA_v6zYJDAI&feature=share".into())
+        );
+        assert_eq!(
+            validate_url("http://www.youtube.com/watch?v=AV1mu0rsHxc".into()),
+            Some("youtube.com/watch?v=AV1mu0rsHxc".into())
+        );
+        assert_eq!(
+            validate_url("http://youtu.be/AV1mu0rsHxc".into()),
+            Some("youtu.be/AV1mu0rsHxc".into())
+        );
+        assert_eq!(
+            validate_url(
+                "https://open.spotify.com/track/3BGj9WOKMyl2ZlkK8IoKhq?si=8771121b200647e5".into()
+            ),
+            Some("open.spotify.com/track/3BGj9WOKMyl2ZlkK8IoKhq?si=8771121b200647e5".into())
+        );
+        assert_eq!(
+            validate_url("youtu.be/AV1mu0rsHxc".into()),
+            Some("youtu.be/AV1mu0rsHxc".into())
+        );
+        assert_eq!(validate_url("e/AV1mu0rsHxc".into()), None);
+        assert_eq!(validate_url("barracuda".into()), None);
+        assert_eq!(validate_url("u.be/AV1mu0rsHxc".into()), None);
+        assert_eq!(validate_url("http://a.be/AV1mu0rsHxc".into()), None);
+    }
+}
