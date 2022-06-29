@@ -1,7 +1,7 @@
+use axum::http::StatusCode;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use tide::StatusCode;
 use tracing::info;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
@@ -81,7 +81,7 @@ pub fn verify_slack(
         Ok(mac) => mac,
         Err(e) => {
             info!("canot start hmacsha256: {}", e);
-            return Err(StatusCode::InternalServerError);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
 
@@ -92,7 +92,7 @@ pub fn verify_slack(
     let sig = format!("v0={}", hex::encode(mac.finalize().into_bytes()));
 
     if sig != expt_sign {
-        return Err(StatusCode::Unauthorized);
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
     Ok(())

@@ -15,12 +15,12 @@ pub struct Config {
     slack_token: String,
     slack_signing_secret: String,
     webhook_token: String,
-    port: Option<String>,
+    port: Option<u16>,
     env: Option<String>,
     rust_log: Option<String>,
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = match envy::from_env::<Config>() {
         Ok(config) => config,
@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     if config.env.is_none() || config.env.as_ref().unwrap() != "prod" {
-        tracing_subscriber::fmt().init();
+        tracing_subscriber::fmt::init();
     } else {
         tracing_subscriber::fmt().json().init();
     }
