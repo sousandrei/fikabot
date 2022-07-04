@@ -27,4 +27,4 @@ tokio = { version = "1.19.2", features = ["full"] }
 tower = "0.4.13"
 tower-http = { version = "0.3.4", features = ["full"] }
 tracing = "0.1.35"
-tracing-subscriber = { version = "0.3.11", features = ["std", "fmt", "json"] }
+tracing-subscriber = { version = "0.3.14", features = ["std", "fmt", "json"] }
