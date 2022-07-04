@@ -7,7 +7,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0.58"
-axum = "0.5.10"
+axum = "0.5.11"
 envy = "0.4.2"
 futures-util = "0.3.21"
 goauth = "0.13.0"
