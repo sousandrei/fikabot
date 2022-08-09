@@ -6,8 +6,8 @@ use crate::{
     slack::{self, get_channel_users},
 };
 
-pub async fn matchmake(config: &crate::Config) -> anyhow::Result<()> {
-    let channels = Channel::list(config).await?;
+pub async fn matchmake(config: &crate::Config, db: &crate::db::DbConnection) -> anyhow::Result<()> {
+    let channels = Channel::find_all(db).await?;
 
     for channel in channels {
         if let Err(e) = matchmake_channel(&config.slack_token, &channel).await {
@@ -19,11 +19,11 @@ pub async fn matchmake(config: &crate::Config) -> anyhow::Result<()> {
 }
 
 pub async fn matchmake_channel(token: &str, channel: &Channel) -> anyhow::Result<()> {
-    info!("processing channel: {}", channel.channel_name);
+    info!("processing channel: {}", channel.name);
 
     let bot = slack::get_bot_id(token).await?;
 
-    let mut users = get_channel_users(token, &channel.channel_id).await?;
+    let mut users = get_channel_users(token, &channel.id).await?;
 
     users = users
         .into_iter()
@@ -93,8 +93,8 @@ pub async fn message_pair(token: &str, channel: &Channel, pair: &[String]) -> an
     };
 
     if let [user1, user2] = pair {
-        slack::send_message(token, user1, msg(&channel.channel_name, user2)).await?;
-        slack::send_message(token, user2, msg(&channel.channel_name, user1)).await?;
+        slack::send_message(token, user1, msg(&channel.name, user2)).await?;
+        slack::send_message(token, user2, msg(&channel.name, user1)).await?;
     }
 
     Ok(())
@@ -114,9 +114,9 @@ This time you got an extra buddy! ;)"
         )
     };
 
-    slack::send_message(token, user1, msg(&channel.channel_name, user2, user3)).await?;
-    slack::send_message(token, user2, msg(&channel.channel_name, user1, user3)).await?;
-    slack::send_message(token, user3, msg(&channel.channel_name, user1, user2)).await?;
+    slack::send_message(token, user1, msg(&channel.name, user2, user3)).await?;
+    slack::send_message(token, user2, msg(&channel.name, user1, user3)).await?;
+    slack::send_message(token, user3, msg(&channel.name, user1, user2)).await?;
 
     Ok(())
 }

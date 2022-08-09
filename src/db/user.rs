@@ -1,60 +1,56 @@
-use serde::{Deserialize, Serialize};
+use futures_util::TryStreamExt;
+use sqlx::Row;
 
-use crate::db::{get_values, write_values, Response};
+use super::DbConnection;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
+#[derive(Debug)]
 pub struct User {
-    pub user_id: String,
-    pub user_name: String,
+    pub id: String,
+    pub name: String,
     pub song: String,
 }
 
-const SHEET: &str = "users";
-
 impl User {
-    pub async fn save(&self, config: &crate::Config) -> anyhow::Result<()> {
-        let mut res: Response = get_values(config, SHEET).await?;
+    pub async fn find_all(conn: &DbConnection) -> anyhow::Result<Vec<User>> {
+        let mut rows = sqlx::query("SELECT * FROM users").fetch(conn);
 
-        res.values
-            .push(vec![self.user_id.clone(), self.user_name.clone()]);
+        let mut users = Vec::new();
 
-        res.values.dedup();
+        while let Some(row) = rows.try_next().await? {
+            let user = User {
+                id: row.get(0),
+                name: row.get(1),
+                song: row.get(2),
+            };
 
-        write_values(config, SHEET, &res).await?;
+            users.push(user);
+        }
 
-        Ok(())
+        Ok(users)
     }
 
-    pub async fn _delete(config: &crate::Config, user: &str) -> anyhow::Result<()> {
-        let mut res: Response = get_values(config, SHEET).await?;
+    pub async fn _find(conn: &DbConnection) -> anyhow::Result<User> {
+        let row = sqlx::query("SELECT * FROM users").fetch_one(conn).await?;
 
-        res.values = res
-            .values
-            .into_iter()
-            .map(|v| match v.contains(&user.to_owned()) {
-                true => vec![String::new(); 3],
-                false => v,
-            })
-            .collect();
+        let user = User {
+            id: row.get(0),
+            name: row.get(1),
+            song: row.get(2),
+        };
 
-        write_values(config, SHEET, &res).await?;
-
-        Ok(())
+        Ok(user)
     }
 
-    pub async fn list(config: &crate::Config) -> anyhow::Result<Vec<User>> {
-        let res: Response = get_values(config, SHEET).await?;
+    pub async fn save(self, conn: &DbConnection) -> anyhow::Result<()> {
+        sqlx::query("INSERT INTO users (id, name, song) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, song = ?")
+            .bind(&self.id)
+            .bind(&self.name)
+            .bind(&self.song)
+            .bind(&self.name)
+            .bind(&self.song)
+            .execute(conn)
+            .await?;
 
-        let us = res
-            .values
-            .into_iter()
-            .map(|c| User {
-                user_id: c[0].clone(),
-                user_name: c[1].clone(),
-                song: c[2].clone(),
-            })
-            .collect();
-
-        Ok(us)
+        Ok(())
     }
 }

@@ -15,7 +15,7 @@ use tracing::Level;
 
 use crate::{
     algos::{fika, song},
-    db::{channel::Channel, user::User},
+    db::{channel::Channel, user::User, DbConnection},
     slack, Config,
 };
 
@@ -29,7 +29,7 @@ struct SlackCommandBody {
     text: String,
 }
 
-pub async fn start(config: &Config) -> anyhow::Result<()> {
+pub async fn start(config: &Config, db: &DbConnection) -> anyhow::Result<()> {
     let tracing_layer = TraceLayer::new_for_http()
         .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
         .on_response(DefaultOnResponse::new().level(Level::INFO));
@@ -39,6 +39,7 @@ pub async fn start(config: &Config) -> anyhow::Result<()> {
         .layer(
             ServiceBuilder::new()
                 .layer(Extension(config.clone()))
+                .layer(Extension(db.clone()))
                 .layer(middleware::from_fn(slack_auth)),
         );
 
@@ -48,6 +49,7 @@ pub async fn start(config: &Config) -> anyhow::Result<()> {
         .layer(
             ServiceBuilder::new()
                 .layer(Extension(config.clone()))
+                .layer(Extension(db.clone()))
                 .layer(middleware::from_fn(token_auth)),
         );
 
@@ -147,8 +149,11 @@ async fn slack_auth(req: Request<Body>, next: Next<Body>) -> Result<Response, St
     Ok(next.run(req).await)
 }
 
-async fn start_fika(Extension(config): Extension<Config>) -> impl IntoResponse {
-    if let Err(e) = fika::matchmake(&config).await {
+async fn start_fika(
+    Extension(config): Extension<Config>,
+    Extension(db): Extension<DbConnection>,
+) -> impl IntoResponse {
+    if let Err(e) = fika::matchmake(&config, &db).await {
         tracing::error!("fika error: {}", e);
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
@@ -156,8 +161,11 @@ async fn start_fika(Extension(config): Extension<Config>) -> impl IntoResponse {
     StatusCode::OK
 }
 
-async fn start_song(Extension(config): Extension<Config>) -> impl IntoResponse {
-    if let Err(e) = song::matchmake(&config).await {
+async fn start_song(
+    Extension(config): Extension<Config>,
+    Extension(db): Extension<DbConnection>,
+) -> impl IntoResponse {
+    if let Err(e) = song::matchmake(&config, &db).await {
         tracing::error!("song error: {}", e);
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
@@ -167,6 +175,7 @@ async fn start_song(Extension(config): Extension<Config>) -> impl IntoResponse {
 
 async fn parse_commands(
     Extension(config): Extension<Config>,
+    Extension(db): Extension<DbConnection>,
     mut req: Request<Body>,
 ) -> impl IntoResponse {
     let body = req.body_mut();
@@ -176,16 +185,16 @@ async fn parse_commands(
 
     match data.command.as_str() {
         "/fika_now" => now_fika(&config.slack_token, data).await,
-        "/song_now" => now_song(&config).await,
-        "/fika_start" => start_command(&config, data).await,
-        "/fika_stop" => stop_command(&config, data).await,
-        "/fika_song" => song_command(&config, data).await,
+        "/song_now" => now_song(&config, &db).await,
+        "/fika_start" => start_command(&db, data).await,
+        "/fika_stop" => stop_command(&db, data).await,
+        "/fika_song" => song_command(&db, data).await,
         _ => "Command not found",
     }
 }
 
-async fn now_song(config: &Config) -> &'static str {
-    if let Err(e) = song::matchmake(config).await {
+async fn now_song(config: &Config, db: &DbConnection) -> &'static str {
+    if let Err(e) = song::matchmake(config, db).await {
         tracing::error!("{}", e);
         return "Error starting song matchmaking";
     }
@@ -205,8 +214,8 @@ async fn now_fika(token: &str, body: SlackCommandBody) -> &'static str {
     }
 
     let channel = Channel {
-        channel_id,
-        channel_name,
+        id: channel_id,
+        name: channel_name,
     };
 
     if let Err(e) = fika::matchmake_channel(token, &channel).await {
@@ -217,7 +226,7 @@ async fn now_fika(token: &str, body: SlackCommandBody) -> &'static str {
     "Fika started!"
 }
 
-async fn start_command(config: &Config, body: SlackCommandBody) -> &'static str {
+async fn start_command(db: &DbConnection, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody {
         channel_id,
         channel_name,
@@ -233,11 +242,11 @@ async fn start_command(config: &Config, body: SlackCommandBody) -> &'static str 
     }
 
     let channel = Channel {
-        channel_id,
-        channel_name,
+        id: channel_id,
+        name: channel_name,
     };
 
-    if let Err(e) = channel.save(config).await {
+    if let Err(e) = channel.save(db).await {
         tracing::error!("Error saving channel: {}", e);
         return "There was an error trying to start the fika roullete here. Try again soon :thinking_face:";
     }
@@ -245,17 +254,17 @@ async fn start_command(config: &Config, body: SlackCommandBody) -> &'static str 
     "You just started the Fika roullete on this channel! :doughnut:"
 }
 
-async fn stop_command(config: &Config, body: SlackCommandBody) -> &'static str {
+async fn stop_command(db: &DbConnection, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody { channel_id, .. } = body;
 
-    if let Err(e) = Channel::delete(config, &channel_id).await {
+    if let Err(e) = Channel::delete(db, &channel_id).await {
         tracing::error!("Error deleting channel: {}", e);
     }
 
     "Sad to see you stop :cry:"
 }
 
-async fn song_command(config: &Config, body: SlackCommandBody) -> &'static str {
+async fn song_command(db: &DbConnection, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody {
         user_id,
         user_name,
@@ -269,12 +278,12 @@ async fn song_command(config: &Config, body: SlackCommandBody) -> &'static str {
     };
 
     let user = User {
-        user_id,
-        user_name,
+        id: user_id,
+        name: user_name,
         song,
     };
 
-    if let Err(e) = user.save(config).await {
+    if let Err(e) = user.save(db).await {
         tracing::error!("Error saving user: {}", e);
         return "There was an error trying to save your song. Try again soon :thinking_face:";
     }
