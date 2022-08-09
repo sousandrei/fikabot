@@ -1,58 +1,64 @@
-use serde::{Deserialize, Serialize};
+use futures_util::TryStreamExt;
+use sqlx::Row;
 
-use crate::db::{get_values, write_values, Response};
+use super::DbConnection;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Eq, PartialOrd, Ord)]
+#[derive(Debug)]
 pub struct Channel {
-    pub channel_id: String,
-    pub channel_name: String,
+    pub id: String,
+    pub name: String,
 }
 
-const SHEET: &str = "channels";
-
 impl Channel {
-    pub async fn save(&self, config: &crate::Config) -> anyhow::Result<()> {
-        let mut res: Response = get_values(config, SHEET).await?;
+    pub async fn find_all(conn: &DbConnection) -> anyhow::Result<Vec<Channel>> {
+        let mut rows = sqlx::query("SELECT * FROM channels").fetch(conn);
 
-        res.values
-            .push(vec![self.channel_id.clone(), self.channel_name.clone()]);
+        let mut channels = Vec::new();
 
-        res.values.dedup();
+        while let Some(row) = rows.try_next().await? {
+            let channel = Channel {
+                id: row.get(0),
+                name: row.get(1),
+            };
 
-        write_values(config, SHEET, &res).await?;
+            channels.push(channel);
+        }
+
+        Ok(channels)
+    }
+
+    pub async fn _find(conn: &DbConnection) -> anyhow::Result<Channel> {
+        let row = sqlx::query("SELECT * FROM channels")
+            .fetch_one(conn)
+            .await?;
+
+        let channel = Channel {
+            id: row.get(0),
+            name: row.get(1),
+        };
+
+        Ok(channel)
+    }
+
+    pub async fn save(self, conn: &DbConnection) -> anyhow::Result<()> {
+        sqlx::query(
+            "INSERT INTO channels (id, name) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name = ?",
+        )
+        .bind(&self.id)
+        .bind(&self.name)
+        .bind(&self.name)
+        .execute(conn)
+        .await?;
 
         Ok(())
     }
 
-    pub async fn delete(config: &crate::Config, channel: &str) -> anyhow::Result<()> {
-        let mut res: Response = get_values(config, SHEET).await?;
-
-        res.values = res
-            .values
-            .into_iter()
-            .map(|v| match v.contains(&channel.to_owned()) {
-                true => vec![String::new(); 2],
-                false => v,
-            })
-            .collect();
-
-        write_values(config, SHEET, &res).await?;
+    pub async fn delete(conn: &DbConnection, id: &str) -> anyhow::Result<()> {
+        sqlx::query("DELETE FROM channels WHERE id = ?")
+            .bind(id)
+            .execute(conn)
+            .await?;
 
         Ok(())
-    }
-
-    pub async fn list(config: &crate::Config) -> anyhow::Result<Vec<Channel>> {
-        let res: Response = get_values(config, SHEET).await?;
-
-        let cs = res
-            .values
-            .into_iter()
-            .map(|c| Channel {
-                channel_id: c[0].clone(),
-                channel_name: c[1].clone(),
-            })
-            .collect();
-
-        Ok(cs)
     }
 }

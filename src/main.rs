@@ -1,6 +1,5 @@
-use std::env;
-
 use serde::Deserialize;
+use std::env;
 
 mod algos;
 mod db;
@@ -9,13 +8,18 @@ mod slack;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
-    sheets_id: String,
-    account_email: String,
-    credentials: String,
     slack_token: String,
     slack_signing_secret: String,
-    webhook_token: String,
+
     port: Option<u16>,
+    webhook_token: String,
+
+    db_username: String,
+    db_password: String,
+    db_host: String,
+    db_port: u16,
+    db_database: String,
+
     env: Option<String>,
     rust_log: Option<String>,
 }
@@ -37,7 +41,9 @@ async fn main() -> anyhow::Result<()> {
         tracing_subscriber::fmt().json().init();
     }
 
-    http::start(&config).await?;
+    let db = db::get_db(&config).await?;
+
+    http::start(&config, &db).await?;
 
     Ok(())
 }

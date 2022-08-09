@@ -6,14 +6,14 @@ use crate::{
     slack::{self},
 };
 
-pub async fn matchmake(config: &crate::Config) -> anyhow::Result<()> {
-    let mut users = User::list(config).await?;
+pub async fn matchmake(config: &crate::Config, db: &crate::db::DbConnection) -> anyhow::Result<()> {
+    let mut users = User::find_all(db).await?;
 
     let bot = slack::get_bot_id(&config.slack_token).await?;
 
     users = users
         .into_iter()
-        .filter(|u| u.user_id != bot.bot_id && u.user_id != bot.user_id)
+        .filter(|u| u.id != bot.bot_id && u.id != bot.user_id)
         .collect();
 
     // Shuffle people
@@ -72,8 +72,8 @@ async fn message_pair(token: &str, pair: &[User]) -> anyhow::Result<()> {
     let msg = |user: &str| format!("song from is<@{user}>!");
 
     if let [user1, user2] = pair {
-        slack::send_message(token, &user1.user_id, msg(&user1.user_id)).await?;
-        slack::send_message(token, &user2.user_id, msg(&user2.user_id)).await?;
+        slack::send_message(token, &user1.id, msg(&user1.id)).await?;
+        slack::send_message(token, &user2.id, msg(&user2.id)).await?;
     }
 
     Ok(())
@@ -87,9 +87,9 @@ async fn message_trio(token: &str, user1: &User, user2: &User, user3: &User) -> 
         )
     };
 
-    slack::send_message(token, &user1.user_id, msg(&user2.user_id)).await?;
-    slack::send_message(token, &user2.user_id, msg(&user1.user_id)).await?;
-    slack::send_message(token, &user3.user_id, msg(&user2.user_id)).await?;
+    slack::send_message(token, &user1.id, msg(&user2.id)).await?;
+    slack::send_message(token, &user2.id, msg(&user1.id)).await?;
+    slack::send_message(token, &user3.id, msg(&user2.id)).await?;
 
     Ok(())
 }
