@@ -26,25 +26,29 @@ On top of that, you'll need to create a couple of slash commands, all pointing t
 The application needs a couple of environment variables to function
 
 ```sh
-SLACK_TOKEN='xoxb-......'
-SLACK_SIGNING_SECRET='...'
-SHEETS_ID='123123123'
-ACCOUNT_EMAIL='some-account@project.iam.gserviceaccount.com'
-WEBHOOK_TOKEN='something-from-your-head'
-CREDENTIALS='...'
+# setup logging, non dev is json formatted
+export RUST_LOG="info"
+export ENV="dev"
+
+# token for calling the start apis
+export WEBHOOK_TOKEN="webhook_token"
+
+export SLACK_TOKEN="..."
+export SLACK_SIGNING_SECRET="..."
+
+export PORT="8080"
+
+# Make sure the database exists
+export DB_USERNAME=root
+export DB_PASSWORD=1234
+export DB_HOST=localhost
+export DB_PORT=3306
+export DB_DATABASE=fikabot
+
+# For operating SeaORM migration CLI
+export DATABASE_URL="mysql://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_DATABASE"
+
 ```
-
-`SLACK_TOKEN` Is the bot token of your slack application, denotet by starting with `xoxb`
-
-`SLACK_SIGNING_SECRET` is the secret provided by slack to sign their own requests, we need this since the endpoint needs to be publicly exposed
-
-`SHEETS_ID` is the Id of you Google Sheets file, our "database"
-
-`WEBHOOK_TOKEN` is a token for the fika to be started remotelly.
-
-`ACCOUNT_EMAIL` is the email for your service account on GCP to use to authenticate to the Google Sheets API
-
-`CREDENTIALS` is the credentials file for said account
 
 Provide the application with those as enviroment variables and you are good to go!
 

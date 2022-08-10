@@ -7,7 +7,6 @@ version = "0.1.0"
 
 [dependencies]
 entity = { path = "entity" }
-migration = { path = "migration" }
 
 anyhow = "1.0.58"
 axum = "0.5.13"
