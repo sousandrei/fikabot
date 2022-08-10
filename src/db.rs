@@ -1,29 +1,19 @@
-use sqlx::mysql::{MySqlConnectOptions, MySqlPoolOptions};
+use sea_orm::DatabaseConnection;
 use tracing::info;
 
 use crate::Config;
 
-pub mod channel;
-pub mod user;
-
-pub type DbConnection = sqlx::Pool<sqlx::MySql>;
-
-pub async fn get_db(config: &Config) -> anyhow::Result<DbConnection> {
+pub async fn get_db(config: &Config) -> anyhow::Result<DatabaseConnection> {
     info!("db connecting");
 
-    let conn_options = MySqlConnectOptions::new()
-        .username(&config.db_username)
-        .password(&config.db_password)
-        .host(&config.db_host)
-        .port(config.db_port)
-        .database(&config.db_database);
+    let url = format!(
+        "mysql://{}:{}@{}:{}/{}",
+        config.db_username, config.db_password, config.db_host, config.db_port, config.db_database,
+    );
 
-    let pool = MySqlPoolOptions::new()
-        .max_connections(5)
-        .connect_with(conn_options)
-        .await?;
+    let connection = sea_orm::Database::connect(&url).await?;
 
     info!("Connected to database");
 
-    Ok(pool)
+    Ok(connection)
 }

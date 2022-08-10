@@ -1,32 +1,37 @@
 use rand::{prelude::SliceRandom, thread_rng};
+use sea_orm::{DatabaseConnection, EntityTrait};
 use tracing::info;
 
-use crate::{
-    db::user::User,
-    slack::{self},
-};
+use entity::prelude::User;
 
-pub async fn matchmake(config: &crate::Config, db: &crate::db::DbConnection) -> anyhow::Result<()> {
-    let mut users = User::find_all(db).await?;
+use crate::slack;
 
+pub async fn matchmake(config: &crate::Config, db: &DatabaseConnection) -> anyhow::Result<()> {
+    let users = User::find().all(db).await?;
     let bot = slack::get_bot_id(&config.slack_token).await?;
 
-    users = users
+    let mut users_ids: Vec<String> = users
         .into_iter()
-        .filter(|u| u.id != bot.bot_id && u.id != bot.user_id)
+        .filter_map(|u| {
+            if u.id != bot.bot_id && u.id != bot.user_id {
+                Some(u.id)
+            } else {
+                None
+            }
+        })
         .collect();
 
     // Shuffle people
-    users.shuffle(&mut thread_rng());
+    users_ids.shuffle(&mut thread_rng());
 
     // Not enough people to pair
-    if users.len() < 2 {
+    if users_ids.len() < 2 {
         info!("not enough ppl");
         return Ok(());
     }
 
     info!("chunking pairs");
-    let pairs: Vec<&[User]> = users.chunks(2).collect();
+    let pairs: Vec<&[String]> = users_ids.chunks(2).collect();
 
     if pairs.is_empty() {
         info!("empty pairs");
@@ -68,18 +73,18 @@ pub async fn matchmake(config: &crate::Config, db: &crate::db::DbConnection) -> 
 
 // TODO: come up with a couple different messages
 
-async fn message_pair(token: &str, pair: &[User]) -> anyhow::Result<()> {
+async fn message_pair(token: &str, pair: &[String]) -> anyhow::Result<()> {
     let msg = |user: &str| format!("song from is<@{user}>!");
 
     if let [user1, user2] = pair {
-        slack::send_message(token, &user1.id, msg(&user1.id)).await?;
-        slack::send_message(token, &user2.id, msg(&user2.id)).await?;
+        slack::send_message(token, user1, msg(user1)).await?;
+        slack::send_message(token, user2, msg(user2)).await?;
     }
 
     Ok(())
 }
 
-async fn message_trio(token: &str, user1: &User, user2: &User, user3: &User) -> anyhow::Result<()> {
+async fn message_trio(token: &str, user1: &str, user2: &str, user3: &str) -> anyhow::Result<()> {
     let msg = |user: &str| {
         format!(
             "song from is<@{user}>!, your song did not reach anyone,
@@ -87,9 +92,9 @@ async fn message_trio(token: &str, user1: &User, user2: &User, user3: &User) -> 
         )
     };
 
-    slack::send_message(token, &user1.id, msg(&user2.id)).await?;
-    slack::send_message(token, &user2.id, msg(&user1.id)).await?;
-    slack::send_message(token, &user3.id, msg(&user2.id)).await?;
+    slack::send_message(token, user1, msg(user2)).await?;
+    slack::send_message(token, user2, msg(user1)).await?;
+    slack::send_message(token, user3, msg(user2)).await?;
 
     Ok(())
 }
