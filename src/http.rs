@@ -8,7 +8,7 @@ use axum::{
     Extension, Router,
 };
 use hyper::Body;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel, Set};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
@@ -253,7 +253,7 @@ async fn start_command(db: &DatabaseConnection, body: SlackCommandBody) -> &'sta
         Ok(c) => {
             if c.is_some() {
                 return "Fika is already running in this channel :D";
-            } else if let Err(e) = Channel::insert(channel).exec(db).await {
+            } else if let Err(e) = channel.insert(db).await {
                 tracing::error!("Error saving channel: {}", e);
                 return "There was an error trying to start the fika roullete here. Try again soon :thinking_face:";
             }
@@ -294,17 +294,21 @@ async fn song_command(db: &DatabaseConnection, body: SlackCommandBody) -> &'stat
         id: user_id.clone(),
         name: user_name.clone(),
         song: Some(song),
-    }
-    .into_active_model();
+    };
 
     match User::find_by_id(user_id).one(db).await {
         Ok(u) => {
             if u.is_some() {
-                if let Err(e) = user.update(db).await {
+                let mut old_user = u.unwrap().into_active_model();
+
+                old_user.name = Set(user.name);
+                old_user.song = Set(user.song);
+
+                if let Err(e) = old_user.update(db).await {
                     tracing::error!("Error updating user: {}", e);
                     return "There was an error trying to save your song. Try again soon :thinking_face:";
                 }
-            } else if let Err(e) = User::insert(user).exec(db).await {
+            } else if let Err(e) = user.into_active_model().insert(db).await {
                 tracing::error!("Error saving user: {}", e);
                 return "There was an error trying to save your song. Try again soon :thinking_face:";
             }
