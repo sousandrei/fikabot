@@ -1,28 +1,37 @@
-FROM rust as builder
+FROM rust AS builder
 
-WORKDIR /opt/fika
+WORKDIR /app
 
 # Cache build dependencies
-ADD .gitignore Cargo.lock Cargo.toml ./
-RUN mkdir src && echo "fn main() {println!(\"If you see this, your docker build failed\");}" >> src/main.rs
-RUN cargo build --release
+ADD .gitignore Cargo.toml Cargo.lock src entity ./
+RUN --mount=type=cache,target=/app/target \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/usr/local/rustup \
+    set -eux; \
+    cargo build --release; \
+    objcopy --compress-debug-sections target/release/fikabot ./fikabot
 
-# Remove temporary main and actually build our code
-RUN rm -rf ./target/release/.fingerprint/fikabot*
-ADD src src
-RUN cargo build --release 
-
+# ===================================
 FROM gcr.io/distroless/cc
 
-ENV ENV ""
-ENV SLACK_TOKEN ""
-ENV PORT 8080
-ENV SLACK_SIGNING_SECRET ""
-ENV ACCOUNT_EMAIL ""
-ENV CREDENTIALS ""
+ENV RUST_LOG "info"
+ENV ENV "prod"
+
 ENV WEBHOOK_TOKEN ""
 
-WORKDIR /opt/
-COPY --from=builder /opt/fika/target/release/fikabot /opt/fikabot
+ENV SLACK_TOKEN ""
+ENV SLACK_SIGNING_SECRET ""
 
-CMD [ "/opt/fikabot" ]
+ENV PORT "8080"
+
+ENV DB_USERNAME ""
+ENV DB_PASSWORD ""
+ENV DB_HOST ""
+ENV DB_PORT ""
+ENV DB_DATABASE ""
+
+WORKDIR /app
+COPY --from=builder /app/fikabot /app/fikabot
+
+ENTRYPOINT [ "/app/fikabot" ]
