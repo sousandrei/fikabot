@@ -8,14 +8,16 @@ use axum::{
     Extension, Router,
 };
 use hyper::Body;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel, Set};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
+use entity::{prelude::*, *};
+
 use crate::{
     algos::{fika, song},
-    db::{channel::Channel, user::User},
     slack, Config,
 };
 
@@ -29,7 +31,7 @@ struct SlackCommandBody {
     text: String,
 }
 
-pub async fn start(config: &Config) -> anyhow::Result<()> {
+pub async fn start(config: &Config, db: &DatabaseConnection) -> anyhow::Result<()> {
     let tracing_layer = TraceLayer::new_for_http()
         .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
         .on_response(DefaultOnResponse::new().level(Level::INFO));
@@ -39,6 +41,7 @@ pub async fn start(config: &Config) -> anyhow::Result<()> {
         .layer(
             ServiceBuilder::new()
                 .layer(Extension(config.clone()))
+                .layer(Extension(db.clone()))
                 .layer(middleware::from_fn(slack_auth)),
         );
 
@@ -48,6 +51,7 @@ pub async fn start(config: &Config) -> anyhow::Result<()> {
         .layer(
             ServiceBuilder::new()
                 .layer(Extension(config.clone()))
+                .layer(Extension(db.clone()))
                 .layer(middleware::from_fn(token_auth)),
         );
 
@@ -147,8 +151,11 @@ async fn slack_auth(req: Request<Body>, next: Next<Body>) -> Result<Response, St
     Ok(next.run(req).await)
 }
 
-async fn start_fika(Extension(config): Extension<Config>) -> impl IntoResponse {
-    if let Err(e) = fika::matchmake(&config).await {
+async fn start_fika(
+    Extension(config): Extension<Config>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> impl IntoResponse {
+    if let Err(e) = fika::matchmake(&config, &db).await {
         tracing::error!("fika error: {}", e);
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
@@ -156,8 +163,11 @@ async fn start_fika(Extension(config): Extension<Config>) -> impl IntoResponse {
     StatusCode::OK
 }
 
-async fn start_song(Extension(config): Extension<Config>) -> impl IntoResponse {
-    if let Err(e) = song::matchmake(&config).await {
+async fn start_song(
+    Extension(config): Extension<Config>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> impl IntoResponse {
+    if let Err(e) = song::matchmake(&config, &db).await {
         tracing::error!("song error: {}", e);
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
@@ -167,6 +177,7 @@ async fn start_song(Extension(config): Extension<Config>) -> impl IntoResponse {
 
 async fn parse_commands(
     Extension(config): Extension<Config>,
+    Extension(db): Extension<DatabaseConnection>,
     mut req: Request<Body>,
 ) -> impl IntoResponse {
     let body = req.body_mut();
@@ -176,16 +187,16 @@ async fn parse_commands(
 
     match data.command.as_str() {
         "/fika_now" => now_fika(&config.slack_token, data).await,
-        "/song_now" => now_song(&config).await,
-        "/fika_start" => start_command(&config, data).await,
-        "/fika_stop" => stop_command(&config, data).await,
-        "/fika_song" => song_command(&config, data).await,
+        "/song_now" => now_song(&config, &db).await,
+        "/fika_start" => start_command(&db, data).await,
+        "/fika_stop" => stop_command(&db, data).await,
+        "/fika_song" => song_command(&db, data).await,
         _ => "Command not found",
     }
 }
 
-async fn now_song(config: &Config) -> &'static str {
-    if let Err(e) = song::matchmake(config).await {
+async fn now_song(config: &Config, db: &DatabaseConnection) -> &'static str {
+    if let Err(e) = song::matchmake(config, db).await {
         tracing::error!("{}", e);
         return "Error starting song matchmaking";
     }
@@ -204,9 +215,9 @@ async fn now_fika(token: &str, body: SlackCommandBody) -> &'static str {
         return "Fika is not allowed in general :/";
     }
 
-    let channel = Channel {
-        channel_id,
-        channel_name,
+    let channel = channel::Model {
+        id: channel_id,
+        name: channel_name,
     };
 
     if let Err(e) = fika::matchmake_channel(token, &channel).await {
@@ -217,7 +228,7 @@ async fn now_fika(token: &str, body: SlackCommandBody) -> &'static str {
     "Fika started!"
 }
 
-async fn start_command(config: &Config, body: SlackCommandBody) -> &'static str {
+async fn start_command(db: &DatabaseConnection, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody {
         channel_id,
         channel_name,
@@ -232,30 +243,41 @@ async fn start_command(config: &Config, body: SlackCommandBody) -> &'static str 
         return "Fika is only allowed in channels :D";
     }
 
-    let channel = Channel {
-        channel_id,
-        channel_name,
-    };
-
-    if let Err(e) = channel.save(config).await {
-        tracing::error!("Error saving channel: {}", e);
-        return "There was an error trying to start the fika roullete here. Try again soon :thinking_face:";
+    let channel = channel::Model {
+        id: channel_id.clone(),
+        name: channel_name,
     }
+    .into_active_model();
 
-    "You just started the Fika roullete on this channel! :doughnut:"
+    match Channel::find_by_id(channel_id).one(db).await {
+        Ok(c) => {
+            if c.is_some() {
+                return "Fika is already running in this channel :D";
+            } else if let Err(e) = channel.insert(db).await {
+                tracing::error!("Error saving channel: {}", e);
+                return "There was an error trying to start the fika roullete here. Try again soon :thinking_face:";
+            }
+
+            "You just started the Fika roullete on this channel! :doughnut:"
+        }
+        Err(e) => {
+            tracing::error!("Error finding channel: {}", e);
+            "There was an error trying to start the fika roullete here. Try again soon :thinking_face:"
+        }
+    }
 }
 
-async fn stop_command(config: &Config, body: SlackCommandBody) -> &'static str {
+async fn stop_command(db: &DatabaseConnection, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody { channel_id, .. } = body;
 
-    if let Err(e) = Channel::delete(config, &channel_id).await {
+    if let Err(e) = Channel::delete_by_id(channel_id).exec(db).await {
         tracing::error!("Error deleting channel: {}", e);
     }
 
     "Sad to see you stop :cry:"
 }
 
-async fn song_command(config: &Config, body: SlackCommandBody) -> &'static str {
+async fn song_command(db: &DatabaseConnection, body: SlackCommandBody) -> &'static str {
     let SlackCommandBody {
         user_id,
         user_name,
@@ -268,18 +290,36 @@ async fn song_command(config: &Config, body: SlackCommandBody) -> &'static str {
         None => return "This url is not valid :/",
     };
 
-    let user = User {
-        user_id,
-        user_name,
-        song,
+    let user = user::Model {
+        id: user_id.clone(),
+        name: user_name.clone(),
+        song: Some(song),
     };
 
-    if let Err(e) = user.save(config).await {
-        tracing::error!("Error saving user: {}", e);
-        return "There was an error trying to save your song. Try again soon :thinking_face:";
-    }
+    match User::find_by_id(user_id).one(db).await {
+        Ok(u) => {
+            if u.is_some() {
+                let mut old_user = u.unwrap().into_active_model();
 
-    "Your song is saved for this week! :partyparrot:"
+                old_user.name = Set(user.name);
+                old_user.song = Set(user.song);
+
+                if let Err(e) = old_user.update(db).await {
+                    tracing::error!("Error updating user: {}", e);
+                    return "There was an error trying to save your song. Try again soon :thinking_face:";
+                }
+            } else if let Err(e) = user.into_active_model().insert(db).await {
+                tracing::error!("Error saving user: {}", e);
+                return "There was an error trying to save your song. Try again soon :thinking_face:";
+            }
+
+            "Your song is saved for this week! :partyparrot:"
+        }
+        Err(e) => {
+            tracing::error!("Error finding user: {}", e);
+            "There was an error trying to save your song. Try again soon :thinking_face:"
+        }
+    }
 }
 
 const VALID_URLS: [&str; 5] = [

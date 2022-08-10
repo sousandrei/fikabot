@@ -1,13 +1,13 @@
 use rand::{prelude::SliceRandom, thread_rng};
+use sea_orm::{DatabaseConnection, EntityTrait};
 use tracing::{error, info};
 
-use crate::{
-    db::channel::Channel,
-    slack::{self, get_channel_users},
-};
+use entity::{channel, prelude::Channel};
 
-pub async fn matchmake(config: &crate::Config) -> anyhow::Result<()> {
-    let channels = Channel::list(config).await?;
+use crate::slack::{self, get_channel_users};
+
+pub async fn matchmake(config: &crate::Config, db: &DatabaseConnection) -> anyhow::Result<()> {
+    let channels = Channel::find().all(db).await?;
 
     for channel in channels {
         if let Err(e) = matchmake_channel(&config.slack_token, &channel).await {
@@ -18,12 +18,12 @@ pub async fn matchmake(config: &crate::Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn matchmake_channel(token: &str, channel: &Channel) -> anyhow::Result<()> {
-    info!("processing channel: {}", channel.channel_name);
+pub async fn matchmake_channel(token: &str, channel: &channel::Model) -> anyhow::Result<()> {
+    info!("processing channel: {}", channel.name);
 
     let bot = slack::get_bot_id(token).await?;
 
-    let mut users = get_channel_users(token, &channel.channel_id).await?;
+    let mut users = get_channel_users(token, &channel.id).await?;
 
     users = users
         .into_iter()
@@ -50,13 +50,13 @@ pub async fn matchmake_channel(token: &str, channel: &Channel) -> anyhow::Result
     // Just one pair, handle naively
     if pairs.len() < 2 {
         info!("one pair");
-        message_pair(token, channel, pairs[0]).await?;
+        message_pair(token, &channel.id, pairs[0]).await?;
         return Ok(());
     }
 
     // Send message to pairs
     for pair in pairs.iter().take(pairs.len() - 2) {
-        message_pair(token, channel, pair).await?;
+        message_pair(token, &channel.id, pair).await?;
     }
 
     // If we have a trio, last pair is 1 person
@@ -66,7 +66,7 @@ pub async fn matchmake_channel(token: &str, channel: &Channel) -> anyhow::Result
         // Uses messages a trio
         message_trio(
             token,
-            channel,
+            &channel.name,
             &pairs[pairs.len() - 1][0],
             &pairs[pairs.len() - 2][0],
             &pairs[pairs.len() - 2][1],
@@ -76,10 +76,10 @@ pub async fn matchmake_channel(token: &str, channel: &Channel) -> anyhow::Result
         info!("two last pairs");
 
         // second to last pair
-        message_pair(token, channel, pairs[pairs.len() - 2]).await?;
+        message_pair(token, &channel.id, pairs[pairs.len() - 2]).await?;
 
         // Last pair
-        message_pair(token, channel, pairs[pairs.len() - 1]).await?;
+        message_pair(token, &channel.id, pairs[pairs.len() - 1]).await?;
     }
 
     Ok(())
@@ -87,14 +87,14 @@ pub async fn matchmake_channel(token: &str, channel: &Channel) -> anyhow::Result
 
 // TODO: come up with a couple different message
 
-pub async fn message_pair(token: &str, channel: &Channel, pair: &[String]) -> anyhow::Result<()> {
+pub async fn message_pair(token: &str, channel: &str, pair: &[String]) -> anyhow::Result<()> {
     let msg = |channel: &str, user: &str| {
         format!("This week your fika pair for channel `{channel}` is <@{user}>!")
     };
 
     if let [user1, user2] = pair {
-        slack::send_message(token, user1, msg(&channel.channel_name, user2)).await?;
-        slack::send_message(token, user2, msg(&channel.channel_name, user1)).await?;
+        slack::send_message(token, user1, msg(channel, user2)).await?;
+        slack::send_message(token, user2, msg(channel, user1)).await?;
     }
 
     Ok(())
@@ -102,7 +102,7 @@ pub async fn message_pair(token: &str, channel: &Channel, pair: &[String]) -> an
 
 pub async fn message_trio(
     token: &str,
-    channel: &Channel,
+    channel: &str,
     user1: &str,
     user2: &str,
     user3: &str,
@@ -114,9 +114,9 @@ This time you got an extra buddy! ;)"
         )
     };
 
-    slack::send_message(token, user1, msg(&channel.channel_name, user2, user3)).await?;
-    slack::send_message(token, user2, msg(&channel.channel_name, user1, user3)).await?;
-    slack::send_message(token, user3, msg(&channel.channel_name, user1, user2)).await?;
+    slack::send_message(token, user1, msg(channel, user2, user3)).await?;
+    slack::send_message(token, user2, msg(channel, user1, user3)).await?;
+    slack::send_message(token, user3, msg(channel, user1, user2)).await?;
 
     Ok(())
 }
