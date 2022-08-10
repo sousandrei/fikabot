@@ -12,13 +12,6 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        rust:
-          - stable
-          - beta
-          - nightly
-
     steps:
       - uses: actions/checkout@v2
 
@@ -26,7 +19,7 @@ jobs:
         name: installing toolchain
         with:
           profile: default
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
           override: true
           components: rustfmt, clippy
 
@@ -36,10 +29,11 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions-rs/cargo@v1
+        name: clippy
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: -- -D warnings
+          command: clippy
+          args: --release -- -D warnings
 
       - uses: actions-rs/cargo@v1
         name: build
