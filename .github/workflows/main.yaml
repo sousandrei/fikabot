@@ -58,18 +58,20 @@ jobs:
 
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
 
   publish:
-    needs: [ci]
     runs-on: ubuntu-latest
-    if: needs.ci.outputs.release_created == true
+    needs: [ci]
 
     steps:
       - name: Install Task
         uses: arduino/setup-task@v1
+        if: needs.ci.outputs.release_created
 
       - name: Log in to GitHub Container registry
         uses: docker/login-action@v2.0.0
+        if: needs.ci.outputs.release_created
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -77,5 +79,6 @@ jobs:
 
       - name: Publish Package
         run: task release
+        if: needs.ci.outputs.release_created
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ needs.ci.outputs.tag_name }}
