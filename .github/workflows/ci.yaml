@@ -3,6 +3,8 @@ name: Branches
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+    branches-ignore:
+      - "chore(main): release*"
 
   workflow_dispatch:
 
