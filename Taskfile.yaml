@@ -10,6 +10,8 @@ tasks:
     vars:
       GIT_COMMIT:
         sh: git rev-parse --short HEAD
+    env:
+      DOCKER_BUILDKIT: 1
 
   docker-push:
     cmds:
@@ -20,9 +22,6 @@ tasks:
     preconditions:
       - sh: test {{.TAG}}
         msg: TAG not set
-
-    env:
-      DOCKER_BUILDKIT: 1
 
     cmds:
       - task: docker-build
