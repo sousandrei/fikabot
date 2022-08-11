@@ -69,7 +69,5 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish Package
-        run: task release
         if: steps.release.outputs.release_created
-        env:
-          TAG: ${{ steps.release.outputs.tag_name }}
+        run: task release TAG=${{ steps.release.outputs.tag_name }}
