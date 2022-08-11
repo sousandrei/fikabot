@@ -22,7 +22,7 @@ tasks:
         msg: TAG not set
 
     env:
-      - DOCKER_BUILDKIT: 1
+      DOCKER_BUILDKIT: 1
 
     cmds:
       - task: docker-build
