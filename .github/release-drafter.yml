@@ -1,0 +1,80 @@
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+prerelease: true
+categories:
+  - title: "\U0001F6A7 Breaking changes"
+    labels:
+      - "breaking-change"
+  - title: "\U0001F680 New Features"
+    labels:
+      - "feature"
+  - title: "\U0001F41B Bug Fixes"
+    labels:
+      - "fix"
+  - title: "\U0001F9F0 Maintenance"
+    labels:
+      - "chore"
+      - "refactor"
+      - "ci"
+  - title: "\U0001F4DD Documentation"
+    labels:
+      - "documentation"
+  - title: "\U0001F916 Dependencies"
+    labels:
+      - "dependencies"
+version-resolver:
+  major:
+    labels:
+      - "breaking-change"
+  minor:
+    labels:
+      - "feature"
+      - "refactor"
+  patch:
+    labels:
+      - "chore"
+      - "fix"
+      - "dependencies"
+  default: patch
+autolabeler:
+  - label: "breaking-change"
+    body:
+      - "/!:/i"
+  - label: "chore"
+    title:
+      - "/^chore(?!\\(deps\\))/i"
+  - label: "dependencies"
+    title:
+      - "/^chore\\(deps\\)/i"
+  - label: "refactor"
+    title:
+      - "/^refactor/i"
+  - label: "ci"
+    title:
+      - "/^ci/i"
+  - label: "fix"
+    title:
+      - "/^fix/i"
+  - label: "feature"
+    title:
+      - "/^feat/i"
+  - label: "documentation"
+    title:
+      - "/^docs/i"
+template: "## \U0001F4D6 Changes since $PREVIOUS_TAG\n$CHANGES\n"
+replacers:
+  - search: '/(Dependencies)\s*\n{3}(.*)/gms'
+    replace: |
+      $1 
+
+      <details> 
+
+      <summary>click to expand</summary> 
+
+
+      $2 
+
+      </details>
+
+category-template: |
+  ### $TITLE
