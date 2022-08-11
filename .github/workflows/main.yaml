@@ -61,10 +61,10 @@ jobs:
 
       - uses: google-github-actions/release-please-action@v3
         name: Release
+        id: release
         with:
           release-type: rust
           package-name: fikabot
-          command: github-release
 
       - name: Upload Release
-        run: task release TAG=${{ steps.create_release.outputs.tag_name }}
+        run: task release TAG=${{ steps.release.outputs.tag_name }}
