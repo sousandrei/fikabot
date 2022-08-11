@@ -1,9 +1,6 @@
 name: Drafter
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     types: [opened, reopened, synchronize]
 
@@ -11,6 +8,7 @@ jobs:
   update-release-draft:
     permissions:
       issues: write
+      contents: write
       pull-requests: write
 
     runs-on: ubuntu-latest

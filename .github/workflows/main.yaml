@@ -12,6 +12,11 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    permissions:
+      issues: write
+      contents: write
+      pull-requests: write
+
     steps:
       - uses: actions/checkout@v2
 
@@ -22,6 +27,9 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+
+      - name: Install Task
+        uses: arduino/setup-task@v1
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
@@ -43,3 +51,11 @@ jobs:
         with:
           command: build
           args: --release
+
+      - uses: release-drafter/release-drafter@v5
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release
+        run: task release TAG=${{ steps.create_release.outputs.tag_name }}
