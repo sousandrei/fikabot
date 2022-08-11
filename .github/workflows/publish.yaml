@@ -1,0 +1,29 @@
+name: Main
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log in to GitHub Container registry
+        uses: docker/login-action@v2.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Package
+        run: task release
+        env:
+          TAG: ${{ github.event.release.tag_name }}
