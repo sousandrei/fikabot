@@ -1,9 +1,13 @@
 name: Publish
 
 on:
-  workflow_dispatch:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish"
+        required: true
 
 jobs:
   publish:
