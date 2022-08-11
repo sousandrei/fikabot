@@ -2,14 +2,18 @@ version: "3"
 
 vars:
   TAG:
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD
 
 tasks:
+  version:
+    cmds:
+      - echo "{{ .GIT_COMMIT }}"
+
   docker-build:
     cmds:
       - docker build -t ghcr.io/sousandrei/fikabot:{{.GIT_COMMIT}} .
-    vars:
-      GIT_COMMIT:
-        sh: git rev-parse --short HEAD
+
     env:
       DOCKER_BUILDKIT: 1
 
