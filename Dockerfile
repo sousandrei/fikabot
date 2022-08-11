@@ -3,12 +3,16 @@ FROM rust AS builder
 WORKDIR /app
 
 # Cache build dependencies
-ADD .gitignore Cargo.toml Cargo.lock src entity ./
+COPY .gitignore Cargo.toml Cargo.lock ./
+COPY src src
+COPY entity entity
+
 RUN --mount=type=cache,target=/app/target \
     --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/usr/local/rustup \
     set -eux; \
+    rustup install stable; \
     cargo build --release; \
     objcopy --compress-debug-sections target/release/fikabot ./fikabot
 

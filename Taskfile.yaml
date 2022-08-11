@@ -1,0 +1,28 @@
+version: "3"
+
+vars:
+  TAG:
+
+tasks:
+  docker-build:
+    cmds:
+      - docker build -t ghcr.io/sousandrei/fikabot:{{.GIT_COMMIT}} .
+    vars:
+      GIT_COMMIT:
+        sh: git rev-parse --short HEAD
+
+  docker-push:
+    cmds:
+      - task: docker-build
+      - docker push ghcr.io/sousandrei/fikabot:{{.GIT_COMMIT}}
+
+  release:
+    preconditions:
+      - sh: test {{.TAG}}
+        msg: TAG not set
+
+    cmds:
+      - task: docker-build
+      - docker tag ghcr.io/sousandrei/fikabot:{{.GIT_COMMIT}} ghcr.io/sousandrei/fikabot:latest
+      - docker tag ghcr.io/sousandrei/fikabot:{{.GIT_COMMIT}} ghcr.io/sousandrei/fikabot:{{.TAG}}
+      - docker push ghcr.io/sousandrei/fikabot --all-tags
