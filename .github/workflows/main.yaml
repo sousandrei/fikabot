@@ -15,6 +15,7 @@ jobs:
     permissions:
       issues: write
       contents: write
+      packages: write
       pull-requests: write
 
     steps:
