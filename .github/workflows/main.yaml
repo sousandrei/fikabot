@@ -9,7 +9,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  ci:
+  main:
     runs-on: ubuntu-latest
 
     permissions:
