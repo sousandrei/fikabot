@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, reopened, synchronize]
     branches-ignore:
-      - "chore(main): release*"
+      - "release-please-"
 
   workflow_dispatch:
 
