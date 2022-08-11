@@ -28,9 +28,6 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Install Task
-        uses: arduino/setup-task@v1
-
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.0.0
 
