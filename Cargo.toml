@@ -9,7 +9,7 @@ version = "0.1.0"
 entity = { path = "entity" }
 
 anyhow = "1.0.65"
-axum = "0.5.13"
+axum = "0.5.16"
 envy = "0.4.2"
 futures-util = "0.3.24"
 hex = "0.4.3"
