@@ -25,10 +25,7 @@ pub async fn matchmake_channel(token: &str, channel: &channel::Model) -> anyhow:
 
     let mut users = get_channel_users(token, &channel.id).await?;
 
-    users = users
-        .into_iter()
-        .filter(|u| u != &bot.bot_id && u != &bot.user_id)
-        .collect();
+    users.retain(|u| u != &bot.bot_id && u != &bot.user_id);
 
     // Shuffle people
     users.shuffle(&mut thread_rng());
