@@ -86,7 +86,7 @@ pub async fn matchmake_channel(token: &str, channel: &channel::Model) -> anyhow:
 
 pub async fn message_pair(token: &str, channel: &str, pair: &[String]) -> anyhow::Result<()> {
     let msg = |channel: &str, user: &str| {
-        format!("This week your fika pair for channel `{channel}` is <@{user}>!")
+        format!("This week your fika pair for channel `<#{channel}>` is <@{user}>!")
     };
 
     if let [user1, user2] = pair {
@@ -106,7 +106,7 @@ pub async fn message_trio(
 ) -> anyhow::Result<()> {
     let msg = |channel: &str, user1: &str, user2: &str| {
         format!(
-            "This week your fika \"pair\"(s) for channel `{channel}` are <@{user1}> and <@{user2}>!
+            "This week your fika \"pair\"(s) for channel `<#{channel}>` are <@{user1}> and <@{user2}>!
 This time you got an extra buddy! ;)"
         )
     };
