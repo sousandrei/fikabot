@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/sousandrei/fikabot/compare/v0.1.0...v0.1.1) (2022-09-27)
+
+
+### Bug Fixes
+
+* **fika:** channel name not escaped ([#110](https://github.com/sousandrei/fikabot/issues/110)) ([b60fbb5](https://github.com/sousandrei/fikabot/commit/b60fbb54c0b60ab6f5c5426642ef51d0c078f6dd))
+
 ## 0.1.0 (2022-08-11)
 
 

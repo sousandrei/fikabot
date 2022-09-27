@@ -2,7 +2,7 @@
 authors = ["Andrei Sousa <sousandrei@gmail.com>"]
 edition = "2021"
 name = "fikabot"
-version = "0.1.0"
+version = "0.1.1"
 
 
 [dependencies]
