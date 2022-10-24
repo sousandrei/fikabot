@@ -446,7 +446,7 @@ dependencies = [
 name = "entity"
 version = "0.1.0"
 dependencies = [
- "sea-orm",
+ "sea-orm 0.9.3",
 ]
 
 [[package]]
@@ -493,7 +493,7 @@ dependencies = [
  "hyper",
  "rand",
  "reqwest",
- "sea-orm",
+ "sea-orm 0.10.0",
  "serde",
  "serde_qs",
  "sha2",
@@ -1637,12 +1637,41 @@ dependencies = [
  "once_cell",
  "ouroboros",
  "rust_decimal",
- "sea-orm-macros",
- "sea-query",
+ "sea-orm-macros 0.9.3",
+ "sea-query 0.26.3",
  "sea-strum",
  "serde",
  "serde_json",
  "sqlx",
+ "time",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "sea-orm"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcab4b30f6ba8dffa93ebd9ff60fe9f462b1c6729f66acf3f61600be86cfab2c"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "chrono",
+ "futures",
+ "futures-util",
+ "log",
+ "once_cell",
+ "ouroboros",
+ "rust_decimal",
+ "sea-orm-macros 0.10.0",
+ "sea-query 0.27.1",
+ "sea-query-binder",
+ "sea-strum",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
  "time",
  "tracing",
  "url",
@@ -1663,6 +1692,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sea-orm-macros"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ffc4df1f8caa12f156b57be5d3e32d21c81c8771b44a3a1171cf4f2b1d61355"
+dependencies = [
+ "bae",
+ "heck 0.3.3",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "sea-query"
 version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1674,6 +1716,35 @@ dependencies = [
  "sea-query-derive",
  "sea-query-driver",
  "serde_json",
+ "time",
+ "uuid",
+]
+
+[[package]]
+name = "sea-query"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3497a83851c4be4d1fdc8cbc7215105b828a2a944abb64dd2e0ba233f2ce187f"
+dependencies = [
+ "chrono",
+ "rust_decimal",
+ "sea-query-derive",
+ "serde_json",
+ "time",
+ "uuid",
+]
+
+[[package]]
+name = "sea-query-binder"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7dddc5c3889bbc63b7e3374d3a7494551eb801c45f2f9cb460bfa4921653563d"
+dependencies = [
+ "chrono",
+ "rust_decimal",
+ "sea-query 0.27.1",
+ "serde_json",
+ "sqlx",
  "time",
  "uuid",
 ]
@@ -2071,6 +2142,7 @@ dependencies = [
  "itoa",
  "libc",
  "num_threads",
+ "serde",
  "time-macros",
 ]
 
