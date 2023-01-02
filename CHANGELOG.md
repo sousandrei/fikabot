@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/sousandrei/fikabot/compare/v0.1.1...v0.1.2) (2023-01-02)
+
+
+### Bug Fixes
+
+* **msg:** msg for trio using wrong channel id ([#153](https://github.com/sousandrei/fikabot/issues/153)) ([beb5e7a](https://github.com/sousandrei/fikabot/commit/beb5e7aa57309b0cf71445f32d555ba03a667153))
+
 ## [0.1.1](https://github.com/sousandrei/fikabot/compare/v0.1.0...v0.1.1) (2022-09-27)
 
 
