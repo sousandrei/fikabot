@@ -63,7 +63,7 @@ pub async fn matchmake_channel(token: &str, channel: &channel::Model) -> anyhow:
         // Uses messages a trio
         message_trio(
             token,
-            &channel.name,
+            &channel.id,
             &pairs[pairs.len() - 1][0],
             &pairs[pairs.len() - 2][0],
             &pairs[pairs.len() - 2][1],
