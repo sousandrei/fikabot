@@ -12,7 +12,7 @@ struct SlackMessage {
 
 pub async fn send_message(token: &str, user: &str, text: String) -> anyhow::Result<()> {
     let msg = SlackMessage {
-        channel: format!("@{}", user),
+        channel: format!("@{user}"),
         text,
     };
 
@@ -85,7 +85,7 @@ pub fn verify_slack(
         }
     };
 
-    let signature_base = format!("v0:{}:{}", ts, body);
+    let signature_base = format!("v0:{ts}:{body}");
 
     mac.update(signature_base.as_bytes());
 
