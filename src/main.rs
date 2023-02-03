@@ -28,7 +28,7 @@ pub struct Config {
 async fn main() -> anyhow::Result<()> {
     let config = match envy::from_env::<Config>() {
         Ok(config) => config,
-        Err(error) => panic!("{:#?}", error),
+        Err(error) => panic!("{error:#?}"),
     };
 
     if config.rust_log.is_none() {
