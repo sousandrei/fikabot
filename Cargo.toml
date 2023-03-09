@@ -8,7 +8,7 @@ version = "0.1.2"
 [dependencies]
 entity = { path = "entity" }
 
-anyhow = "1.0.68"
+anyhow = "1.0.69"
 axum = "0.5.17"
 envy = "0.4.2"
 futures-util = "0.3.25"
