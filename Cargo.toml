@@ -11,7 +11,7 @@ entity = { path = "entity" }
 anyhow = "1.0.69"
 axum = "0.5.17"
 envy = "0.4.2"
-futures-util = "0.3.25"
+futures-util = "0.3.26"
 hex = "0.4.3"
 hmac = "0.12.1"
 hyper = "0.14.23"
