@@ -9,4 +9,4 @@ name = "entity"
 path = "src/lib.rs"
 
 [dependencies]
-sea-orm = "0.12.3"
+sea-orm = "0.12.10"
