@@ -1,13 +1,15 @@
 use std::net::SocketAddr;
 
 use axum::{
-    http::{Request, StatusCode},
+    body::Body,
+    extract::Request,
+    http::StatusCode,
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
     Extension, Router,
 };
-use hyper::Body;
+use http_body_util::BodyExt;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel, Set};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
@@ -64,9 +66,9 @@ pub async fn start(config: &Config, db: &DatabaseConnection) -> anyhow::Result<(
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port.unwrap_or(8080)));
 
     tracing::info!("server started on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await?;
+
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    axum::serve(listener, app).await?;
 
     // TODO: health
     // let metrics = warp::path!("metrics").map(|| StatusCode::OK);
@@ -79,7 +81,7 @@ async fn ping() -> &'static str {
     "pong!"
 }
 
-async fn token_auth(req: Request<Body>, next: Next<Body>) -> Result<Response, StatusCode> {
+async fn token_auth(req: Request, next: Next) -> Result<Response, StatusCode> {
     let (parts, body) = req.into_parts();
 
     let config: &Config = parts.extensions.get().ok_or_else(|| {
@@ -102,7 +104,7 @@ async fn token_auth(req: Request<Body>, next: Next<Body>) -> Result<Response, St
     Ok(next.run(req).await)
 }
 
-async fn slack_auth(req: Request<Body>, next: Next<Body>) -> Result<Response, StatusCode> {
+async fn slack_auth(req: Request, next: Next) -> Result<Response, StatusCode> {
     let (parts, body) = req.into_parts();
 
     let config: &Config = parts.extensions.get().ok_or_else(|| {
@@ -134,7 +136,14 @@ async fn slack_auth(req: Request<Body>, next: Next<Body>) -> Result<Response, St
         StatusCode::UNAUTHORIZED
     })?;
 
-    let bytes = hyper::body::to_bytes(body).await.unwrap();
+    let bytes = body
+        .collect()
+        .await
+        .map_err(|_| {
+            tracing::error!("cannot collect body");
+            StatusCode::UNAUTHORIZED
+        })?
+        .to_bytes();
     let body_str = String::from_utf8(bytes.to_vec()).unwrap();
 
     if let Err(e) = slack::verify_slack(
@@ -178,10 +187,18 @@ async fn start_song(
 async fn parse_commands(
     Extension(config): Extension<Config>,
     Extension(db): Extension<DatabaseConnection>,
-    mut req: Request<Body>,
+    mut req: Request,
 ) -> impl IntoResponse {
     let body = req.body_mut();
-    let bytes = hyper::body::to_bytes(body).await.unwrap();
+    let bytes = body
+        .collect()
+        .await
+        .map_err(|_| {
+            tracing::error!("cannot collect body");
+            StatusCode::UNAUTHORIZED
+        })
+        .unwrap()
+        .to_bytes();
 
     let data: SlackCommandBody = serde_qs::from_bytes(&bytes).unwrap();
 
