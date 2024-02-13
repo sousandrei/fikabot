@@ -58,7 +58,7 @@ jobs:
           package-name: fikabot
 
       - name: Install Task
-        uses: arduino/setup-task@v1
+        uses: arduino/setup-task@v2
         if: steps.release.outputs.release_created
 
       - name: Log in to GitHub Container registry
