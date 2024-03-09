@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/sousandrei/fikabot/compare/v0.1.2...v0.2.0) (2024-03-09)
+
+
+### Features
+
+* upgrade hyper, tower and axum ([#280](https://github.com/sousandrei/fikabot/issues/280)) ([3cefc44](https://github.com/sousandrei/fikabot/commit/3cefc440bc0b0dd23e9f5571ddf51759c8d41f63))
+
 ## [0.1.2](https://github.com/sousandrei/fikabot/compare/v0.1.1...v0.1.2) (2023-01-02)
 
 
